@@ -12,6 +12,10 @@ class Mesh():
             mesh = kal.io.obj.import_mesh(obj_path, with_normals=True)
         elif ".off" in obj_path:
             mesh = kal.io.off.import_mesh(obj_path)
+        elif ".ply" in obj_path:
+            from plyfile import PlyData
+            plydata = PlyData.read(obj_path)
+            mesh = kal.io.obj.import_mesh(obj_path.replace(".ply", ".obj"), with_normals=True)
         else:
             raise ValueError(f"{obj_path} extension not implemented in mesh reader.")
         self.vertices = mesh.vertices.to(device)
@@ -20,7 +24,9 @@ class Mesh():
         self.face_normals = None
         self.texture_map = None
         self.face_uvs = None
-        if ".obj" in obj_path:
+        self.labels = None
+
+        if ".obj" in obj_path or ".ply" in obj_path:
             # if mesh.uvs.numel() > 0:
             #     uvs = mesh.uvs.unsqueeze(0).to(device)
             #     face_uvs_idx = mesh.face_uvs_idx.to(device)
@@ -36,6 +42,12 @@ class Mesh():
 
                 # Normalize
                 self.face_normals = torch.nn.functional.normalize(self.face_normals)
+        if ".ply" in obj_path:
+            labels = []
+            for i in plydata.elements[0].data:
+                labels.append(i['label'])
+            self.labels = torch.FloatTensor(labels)
+            del labels
 
         self.set_mesh_color(color)
 

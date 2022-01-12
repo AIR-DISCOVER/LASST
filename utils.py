@@ -39,6 +39,21 @@ def get_camera_from_view(elev, azim, r=3.0):
     camera_proj = kal.render.camera.generate_transformation_matrix(pos, look_at, direction)
     return camera_proj
 
+def get_camera_from_inside_out(elev, azim, r=3.0):
+    x = r * torch.sin(elev) * torch.cos(azim)
+    y = r * torch.sin(elev) * torch.sin(azim)
+    z = r * torch.cos(elev)
+    # print(elev,azim,x,y,z)
+
+    pos = torch.tensor([x, y, z]).unsqueeze(0)
+    look_at = -pos
+    if x.numpy() == 0.0 and y.numpy() == 0.0:
+        direction = torch.tensor([0.0, 1.0, 0.0]).unsqueeze(0)
+    else:
+        direction = torch.tensor([-z*x, -z*y, x*x+y*y]).unsqueeze(0)
+
+    camera_proj = kal.render.camera.generate_transformation_matrix(pos, look_at, direction)
+    return camera_proj
 
 def get_camera_from_view2(elev, azim, r=3.0):
     x = r * torch.cos(elev) * torch.cos(azim)
