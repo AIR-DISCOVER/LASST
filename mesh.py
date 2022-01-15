@@ -16,6 +16,7 @@ class Mesh():
             from plyfile import PlyData
             plydata = PlyData.read(obj_path)
             mesh = kal.io.obj.import_mesh(obj_path.replace(".ply", ".obj"), with_normals=True)
+            #mesh = import_ply_mesh(obj_path, with_normals=True, label=8)
         else:
             raise ValueError(f"{obj_path} extension not implemented in mesh reader.")
         self.vertices = mesh.vertices.to(device)
@@ -104,3 +105,39 @@ class Mesh():
             for face in self.faces:
                 f.write("f %d %d %d\n" % (face[0] + 1, face[1] + 1, face[2] + 1))
 
+    def mask_mesh(self):
+
+        # focus on only one things with labels
+        text_label = 5
+
+        ver_mask = self.labels.eq(text_label)
+
+        face_num = self.faces.shape[0]
+        face_mask = torch.ones([face_num]).eq(1).to(device)
+        for i in range(face_num):
+            face_mask[i] = ver_mask[self.faces[i]].all()
+
+        mesh = copy.deepcopy(self)
+        mesh.vertices = self.vertices[ver_mask]
+        mesh.vertex_normals = self.vertex_normals[ver_mask]
+
+        # create new indices
+        old_indice_to_new = []
+        new_indice_to_old = []
+        new = 0
+        for old in range(ver_mask.shape[0]):
+            if ver_mask[old] == True:
+                old_indice_to_new.append(new)
+                new_indice_to_old.append(old)
+                new = new + 1
+            else:
+                old_indice_to_new.append(-1)
+        old_indice_to_new = torch.tensor(old_indice_to_new)
+        new_indice_to_old = torch.tensor(new_indice_to_old)
+
+        mesh.faces = self.faces[face_mask]
+        mesh.faces = old_indice_to_new[mesh.faces].to(device)
+        mesh.face_normals = self.face_normals[face_mask]
+        mesh.face_attributes = self.face_attributes[0][face_mask].unsqueeze(0)
+
+        return mesh, old_indice_to_new, new_indice_to_old

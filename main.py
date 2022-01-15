@@ -164,14 +164,15 @@ def run_branched(args):
 
         sampled_mesh = mesh
 
-        update_mesh(mlp, network_input, prior_color, sampled_mesh, vertices)
-        rendered_images, elev, azim = render.render_front_views(sampled_mesh, num_views=args.n_views,
+        update_mesh(mlp, network_input, prior_color, sampled_mesh, vertices, color_only = args.color_only)
+        rendered_images, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views, lighting=args.lighting,
                                                                 show=args.show,
                                                                 center_azim=args.frontview_center[0],
                                                                 center_elev=args.frontview_center[1],
                                                                 std=args.frontview_std,
                                                                 return_views=True,
-                                                                background=background)
+                                                                background=background,
+                                                                rand_background=args.rand_background)
 
         if n_augs == 0:
             clip_image = clip_transform(rendered_images)
@@ -269,7 +270,7 @@ def run_branched(args):
             default_color[:, :] = torch.tensor([0.5, 0.5, 0.5]).to(device)
             sampled_mesh.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(default_color.unsqueeze(0),
                                                                                    sampled_mesh.faces)
-            geo_renders, elev, azim = render.render_front_views(sampled_mesh, num_views=args.n_views,
+            geo_renders, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views,
                                                                 show=args.show,
                                                                 center_azim=args.frontview_center[0],
                                                                 center_elev=args.frontview_center[1],
@@ -400,12 +401,15 @@ def save_rendered_results(args, dir, final_color, mesh):
     img.save(os.path.join(dir, f"final_cluster.png"))
 
 
-def update_mesh(mlp, network_input, prior_color, sampled_mesh, vertices):
+def update_mesh(mlp, network_input, prior_color, sampled_mesh, vertices, color_only):
     pred_rgb, pred_normal = mlp(network_input)
     sampled_mesh.face_attributes = prior_color + kaolin.ops.mesh.index_vertices_by_faces(
         pred_rgb.unsqueeze(0),
         sampled_mesh.faces)
-    sampled_mesh.vertices = vertices + sampled_mesh.vertex_normals * pred_normal
+    if color_only:
+        sampled_mesh.vertices = vertices
+    else:
+        sampled_mesh.vertices = vertices + sampled_mesh.vertex_normals * pred_normal
     MeshNormalizer(sampled_mesh)()
 
 
@@ -475,6 +479,9 @@ if __name__ == '__main__':
     parser.add_argument('--symmetry', default=False, action='store_true')
     parser.add_argument('--only_z', default=False, action='store_true')
     parser.add_argument('--standardize', default=False, action='store_true')
+    parser.add_argument('--rand_background', default=False, action='store_true')
+    parser.add_argument('--lighting', default=False, action='store_true')
+    parser.add_argument('--color_only', default=False, action='store_true')
 
     args = parser.parse_args()
 

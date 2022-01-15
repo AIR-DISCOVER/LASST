@@ -1,0 +1,31 @@
+CUDA_VISIBLE_DEVICES=3 python -m pdb sem_seg_main.py \
+        --run branch \
+        --obj_path data/source_meshes/scene0005_00.ply \
+        --output_dir results/demo/room/scene0005_00 \
+        --prompt "some chairs made of colorful flowers" \
+        --sigma 5.0  \
+        --clamp tanh \
+        --n_normaugs 4 \
+        --n_augs 1 \
+        --normmincrop 0.1 \
+        --normmaxcrop 0.1 \
+        --geoloss \
+        --colordepth 2 \
+        --normdepth 2   \
+        --frontview \
+        --frontview_std 4 \
+        --clipavg view \
+        --lr_decay 0.9 \
+        --clamp tanh \
+        --normclamp tanh  \
+        --maxcrop 1.0 \
+        --save_render \
+        --seed 11 \
+        --n_iter 300 \
+        --learning_rate 0.0005 \
+        --normal_learning_rate 0.0005 \
+        --background 1 1 1 \
+        --frontview_center 2.0707 0.5303 \
+        --lighting \
+        --normratio 0.05
+

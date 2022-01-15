@@ -1,9 +1,17 @@
-import torch
-import kaolin as kal
-import clip
-import numpy as np
-from torchvision import transforms
+import os
+import warnings
+from collections import namedtuple
 from pathlib import Path
+
+import clip
+import kaolin as kal
+import numpy as np
+import torch
+from kaolin.io.materials import (MaterialFileError, MaterialLoadError,
+                                 MaterialNotFoundError)
+from PIL import Image
+from plyfile import PlyData
+from torchvision import transforms
 
 augment_transform = transforms.Compose([
     transforms.RandomResizedCrop(224, scale=(0.1, 1)),
@@ -396,6 +404,7 @@ def psScreenshot(vertices, faces, axis, angles, save_path, name="mesh", frame_fo
         ps.remove_all_structures()
     if save_video == True:
         import glob
+
         from PIL import Image
         fp_in = f"{frame_path}/{name}_*.png"
         fp_out = f"{save_path}/{name}.gif"

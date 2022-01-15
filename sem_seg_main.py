@@ -54,14 +54,13 @@ def run_branched(args):
     render = Renderer()
     full_mesh = Mesh(args.obj_path)
 
-    # focus on only one things with labels
     focus_one_thing = True
-    text_label = 5
-
-    mask = torch.ones_like(full_mesh.labels).eq(1).to(device)
-    if focus_one_thing is True:
-        mask = full_mesh.labels.eq(text_label)
-    mesh = full_mesh.mask_mesh(mask)
+    if focus_one_thing:
+        mesh, old_indice_to_new, new_indice_to_old = full_mesh.mask_mesh()
+    else:
+        mesh = full_mesh
+        old_indice_to_new = None
+        new_indice_to_old = None
 
     MeshNormalizer(mesh)()
 
@@ -330,7 +329,12 @@ def run_branched(args):
         if i % 100 == 0:
             report_process(args, dir, i, loss, loss_check, losses, rendered_images)
 
-    export_final_results(args, dir, losses, mesh, mlp, network_input, vertices)
+    if focus_one_thing:
+        export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, vertices,
+                            old_indice_to_new=old_indice_to_new, new_indice_to_old=new_indice_to_old)
+    else:
+        export_final_results(args, dir, losses, mesh, mlp, network_input, vertices)
+
 
 
 def report_process(args, dir, i, loss, loss_check, losses, rendered_images):
@@ -364,6 +368,46 @@ def export_final_results(args, dir, losses, mesh, mlp, network_input, vertices):
 
         objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
         mesh.export(os.path.join(dir, f"{objbase}_final.obj"), color=final_color)
+
+        # Run renders
+        if args.save_render:
+            save_rendered_results(args, dir, final_color, mesh)
+
+        # Save final losses
+        torch.save(torch.tensor(losses), os.path.join(dir, "losses.pt"))
+
+def export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, vertices, old_indice_to_new=None, new_indice_to_old=None):
+    with torch.no_grad():
+        pred_rgb, pred_normal = mlp(network_input)
+        pred_rgb = pred_rgb.detach().cpu()
+        pred_normal = pred_normal.detach().cpu()
+
+        torch.save(pred_rgb, os.path.join(dir, f"colors_final.pt"))
+        torch.save(pred_normal, os.path.join(dir, f"normals_final.pt"))
+
+        base_color = torch.full(size=(mesh.vertices.shape[0], 3), fill_value=0.5)
+        final_color = torch.clamp(pred_rgb + base_color, 0, 1)
+
+        mesh.vertices = vertices.detach().cpu() + mesh.vertex_normals.detach().cpu() * pred_normal
+
+        objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
+        mesh.export(os.path.join(dir, f"{objbase}_final.obj"), color=final_color)
+
+        full_base_color = torch.full(size=(full_mesh.vertices.shape[0], 3), fill_value=0.5)
+        full_pred_rgb = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
+        full_pred_normal = torch.zeros([full_mesh.vertices.shape[0], 1], dtype=torch.float32)
+        for old, new in enumerate(old_indice_to_new):
+            if new != -1:
+                full_pred_rgb[old] = pred_rgb[new]
+                full_pred_normal[old] = pred_normal[new]
+
+        full_final_color = torch.clamp(full_pred_rgb + full_base_color, 0, 1)
+
+        # FixMe: input vertices should be fixed
+        full_mesh.vertices = full_mesh.vertices.detach().cpu() + full_mesh.vertex_normals.detach().cpu() * full_pred_normal
+
+        objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
+        full_mesh.export(os.path.join(dir, f"{objbase}_full_final.obj"), color=full_final_color)
 
         # Run renders
         if args.save_render:
@@ -413,6 +457,8 @@ def save_rendered_results(args, dir, final_color, mesh):
 
 def update_mesh(mlp, network_input, prior_color, sampled_mesh, vertices, color_only):
     pred_rgb, pred_normal = mlp(network_input)
+
+    # sampled_mesh refers to the focused thing
     sampled_mesh.face_attributes = prior_color + kaolin.ops.mesh.index_vertices_by_faces(
         pred_rgb.unsqueeze(0),
         sampled_mesh.faces)
