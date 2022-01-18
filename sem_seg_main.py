@@ -55,291 +55,314 @@ def run_branched(args):
     full_mesh = Mesh(args.obj_path)
 
     focus_one_thing = True
-    if focus_one_thing:
-        mesh, old_indice_to_new, new_indice_to_old = full_mesh.mask_mesh()
-    else:
-        mesh = full_mesh
-        old_indice_to_new = None
-        new_indice_to_old = None
+    full_pred_rgb = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
+    full_pred_normal = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
+    for label_order, label in enumerate(args.label):
+        if focus_one_thing:
+            mesh, old_indice_to_new, new_indice_to_old = full_mesh.mask_mesh(label)
+        else:
+            mesh = full_mesh
+            old_indice_to_new = None
+            new_indice_to_old = None
 
-    MeshNormalizer(mesh)()
+        MeshNormalizer(mesh)()
 
-    prior_color = torch.full(size=(mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
+        if args.with_prior_color:
+            prior_color = kaolin.ops.mesh.index_vertices_by_faces(
+                        mesh.colors.unsqueeze(0),
+                        mesh.faces).squeeze()
+        else:
+            prior_color = torch.full(size=(mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
 
-    background = None
-    if args.background is not None:
-        assert len(args.background) == 3
-        background = torch.tensor(args.background).to(device)
+        background = None
+        if args.background is not None:
+            assert len(args.background) == 3
+            background = torch.tensor(args.background).to(device)
 
-    losses = []
+        losses = []
 
-    n_augs = args.n_augs
-    dir = args.output_dir
-    clip_normalizer = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
-    # CLIP Transform
-    clip_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        clip_normalizer
-    ])
+        n_augs = args.n_augs
+        dir = args.output_dir
+        clip_normalizer = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
+        # CLIP Transform
+        clip_transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            clip_normalizer
+        ])
 
-    # Augmentation settings
-    augment_transform = transforms.Compose([
-        transforms.RandomResizedCrop(224, scale=(1, 1)),
-        transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
-        clip_normalizer
-    ])
+        # Augmentation settings
+        augment_transform = transforms.Compose([
+            transforms.RandomResizedCrop(224, scale=(1, 1)),
+            transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
+            clip_normalizer
+        ])
 
-    # Augmentations for normal network
-    if args.cropforward :
-        curcrop = args.normmincrop
-    else:
-        curcrop = args.normmaxcrop
-    normaugment_transform = transforms.Compose([
-        transforms.RandomResizedCrop(224, scale=(curcrop, curcrop)),
-        transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
-        clip_normalizer
-    ])
-    cropiter = 0
-    cropupdate = 0
-    if args.normmincrop < args.normmaxcrop and args.cropsteps > 0:
-        cropiter = round(args.n_iter / (args.cropsteps + 1))
-        cropupdate = (args.maxcrop - args.mincrop) / cropiter
+        # Augmentations for normal network
+        if args.cropforward :
+            curcrop = args.normmincrop
+        else:
+            curcrop = args.normmaxcrop
+        normaugment_transform = transforms.Compose([
+            transforms.RandomResizedCrop(224, scale=(curcrop, curcrop)),
+            transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
+            clip_normalizer
+        ])
+        cropiter = 0
+        cropupdate = 0
+        if args.normmincrop < args.normmaxcrop and args.cropsteps > 0:
+            cropiter = round(args.n_iter / (args.cropsteps + 1))
+            cropupdate = (args.maxcrop - args.mincrop) / cropiter
 
-        if not args.cropforward:
-            cropupdate *= -1
+            if not args.cropforward:
+                cropupdate *= -1
 
-    # Displacement-only augmentations
-    displaugment_transform = transforms.Compose([
-        transforms.RandomResizedCrop(224, scale=(args.normmincrop, args.normmincrop)),
-        transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
-        clip_normalizer
-    ])
+        # Displacement-only augmentations
+        displaugment_transform = transforms.Compose([
+            transforms.RandomResizedCrop(224, scale=(args.normmincrop, args.normmincrop)),
+            transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
+            clip_normalizer
+        ])
 
-    normweight = 1.0
+        normweight = 1.0
 
-    # MLP Settings
-    input_dim = 6 if args.input_normals else 3
-    if args.only_z:
-        input_dim = 1
-    mlp = NeuralStyleField(args.sigma, args.depth, args.width, 'gaussian', args.colordepth, args.normdepth,
-                                args.normratio, args.clamp, args.normclamp, niter=args.n_iter,
-                                progressive_encoding=args.pe, input_dim=input_dim, exclude=args.exclude).to(device)
-    mlp.reset_weights()
+        # MLP Settings
+        input_dim = 6 if args.input_normals else 3
+        if args.only_z:
+            input_dim = 1
+        mlp = NeuralStyleField(args.sigma, args.depth, args.width, 'gaussian', args.colordepth, args.normdepth,
+                                    args.normratio, args.clamp, args.normclamp, niter=args.n_iter,
+                                    progressive_encoding=args.pe, input_dim=input_dim, exclude=args.exclude).to(device)
+        mlp.reset_weights()
 
-    optim = torch.optim.Adam(mlp.parameters(), args.learning_rate, weight_decay=args.decay)
-    activate_scheduler = args.lr_decay < 1 and args.decay_step > 0 and not args.lr_plateau
-    if activate_scheduler:
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=args.decay_step, gamma=args.lr_decay)
-    if not args.no_prompt:
-        if args.prompt:
-            prompt = ' '.join(args.prompt)
+        optim = torch.optim.Adam(mlp.parameters(), args.learning_rate, weight_decay=args.decay)
+        activate_scheduler = args.lr_decay < 1 and args.decay_step > 0 and not args.lr_plateau
+        if activate_scheduler:
+            lr_scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=args.decay_step, gamma=args.lr_decay)
+        if not args.no_prompt:
+            if args.prompt:
+                prompt = ' '.join(args.prompt)
+                prompt = prompt.split(',')[label_order]
+                prompt_token = clip.tokenize([prompt]).to(device)
+                encoded_text = clip_model.encode_text(prompt_token)
+
+                # Save prompt
+                with open(os.path.join(dir, prompt), "w") as f:
+                    f.write("")
+
+                # Same with normprompt
+                norm_encoded = encoded_text
+        if args.normprompt is not None:
+            prompt = ' '.join(args.normprompt)
+            prompt = prompt.split(',')[label_order]
             prompt_token = clip.tokenize([prompt]).to(device)
-            encoded_text = clip_model.encode_text(prompt_token)
+            norm_encoded = clip_model.encode_text(prompt_token)
 
             # Save prompt
-            with open(os.path.join(dir, prompt), "w") as f:
+            with open(os.path.join(dir, f"NORM {prompt}"), "w") as f:
                 f.write("")
 
-            # Same with normprompt
-            norm_encoded = encoded_text
-    if args.normprompt is not None:
-        prompt = ' '.join(args.normprompt)
-        prompt_token = clip.tokenize([prompt]).to(device)
-        norm_encoded = clip_model.encode_text(prompt_token)
+        if args.image:
+            img = Image.open(args.image)
+            img = preprocess(img).to(device)
+            encoded_image = clip_model.encode_image(img.unsqueeze(0))
+            if args.no_prompt:
+                norm_encoded = encoded_image
 
-        # Save prompt
-        with open(os.path.join(dir, f"NORM {prompt}"), "w") as f:
-            f.write("")
+        loss_check = None
+        vertices = copy.deepcopy(mesh.vertices)
+        network_input = copy.deepcopy(vertices)
+        if args.symmetry == True:
+            network_input[:,2] = torch.abs(network_input[:,2])
 
-    if args.image:
-        img = Image.open(args.image)
-        img = preprocess(img).to(device)
-        encoded_image = clip_model.encode_image(img.unsqueeze(0))
-        if args.no_prompt:
-            norm_encoded = encoded_image
+        if args.standardize == True:
+            # Each channel into z-score
+            network_input = (network_input - torch.mean(network_input, dim=0))/torch.std(network_input, dim=0)
 
-    loss_check = None
-    vertices = copy.deepcopy(mesh.vertices)
-    network_input = copy.deepcopy(vertices)
-    if args.symmetry == True:
-        network_input[:,2] = torch.abs(network_input[:,2])
+        for i in tqdm(range(args.n_iter)):
+            optim.zero_grad()
 
-    if args.standardize == True:
-        # Each channel into z-score
-        network_input = (network_input - torch.mean(network_input, dim=0))/torch.std(network_input, dim=0)
+            sampled_mesh = mesh
 
-    for i in tqdm(range(args.n_iter)):
-        optim.zero_grad()
+            update_mesh(mlp, network_input, prior_color, sampled_mesh, vertices, color_only = args.color_only)
+            rendered_images, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views, lighting=args.lighting,
+                                                                    show=args.show,
+                                                                    center_azim=args.frontview_center[0],
+                                                                    center_elev=args.frontview_center[1],
+                                                                    std=args.frontview_std,
+                                                                    return_views=True,
+                                                                    background=background,
+                                                                    rand_background=args.rand_background)
 
-        sampled_mesh = mesh
-
-        update_mesh(mlp, network_input, prior_color, sampled_mesh, vertices, color_only = args.color_only)
-        rendered_images, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views, lighting=args.lighting,
-                                                                show=args.show,
-                                                                center_azim=args.frontview_center[0],
-                                                                center_elev=args.frontview_center[1],
-                                                                std=args.frontview_std,
-                                                                return_views=True,
-                                                                background=background,
-                                                                rand_background=args.rand_background)
-
-        if n_augs == 0:
-            clip_image = clip_transform(rendered_images)
-            encoded_renders = clip_model.encode_image(clip_image)
-            if not args.no_prompt:
-                loss = torch.mean(torch.cosine_similarity(encoded_renders, encoded_text))
-
-        # Check augmentation steps
-        if args.cropsteps != 0 and cropupdate != 0 and i != 0 and i % args.cropsteps == 0:
-            curcrop += cropupdate
-            # print(curcrop)
-            normaugment_transform = transforms.Compose([
-                transforms.RandomResizedCrop(224, scale=(curcrop, curcrop)),
-                transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
-                clip_normalizer
-            ])
-
-        if n_augs > 0:
-            loss = 0.0
-            for _ in range(n_augs):
-                augmented_image = augment_transform(rendered_images)
-                encoded_renders = clip_model.encode_image(augmented_image)
+            if n_augs == 0:
+                clip_image = clip_transform(rendered_images)
+                encoded_renders = clip_model.encode_image(clip_image)
                 if not args.no_prompt:
-                    if args.prompt:
-                        if args.clipavg == "view":
-                            if encoded_text.shape[0] > 1:
-                                loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
-                                                                torch.mean(encoded_text, dim=0), dim=0)
-                            else:
-                                loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
-                                                                encoded_text)
-                        else:
-                            loss -= torch.mean(torch.cosine_similarity(encoded_renders, encoded_text))
-                if args.image:
-                    if encoded_image.shape[0] > 1:
-                        loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
-                                                        torch.mean(encoded_image, dim=0), dim=0)
-                    else:
-                        loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
-                                                        encoded_image)
-                    # if args.image:
-                    #     loss -= torch.mean(torch.cosine_similarity(encoded_renders,encoded_image))
-        if args.splitnormloss:
-            for param in mlp.mlp_normal.parameters():
-                param.requires_grad = False
-        loss.backward(retain_graph=True)
+                    loss = torch.mean(torch.cosine_similarity(encoded_renders, encoded_text))
 
-        # optim.step()
+            # Check augmentation steps
+            if args.cropsteps != 0 and cropupdate != 0 and i != 0 and i % args.cropsteps == 0:
+                curcrop += cropupdate
+                # print(curcrop)
+                normaugment_transform = transforms.Compose([
+                    transforms.RandomResizedCrop(224, scale=(curcrop, curcrop)),
+                    transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
+                    clip_normalizer
+                ])
 
-        # with torch.no_grad():
-        #     losses.append(loss.item())
-
-        # Normal augment transform
-        # loss = 0.0
-        if args.n_normaugs > 0:
-            normloss = 0.0
-            for _ in range(args.n_normaugs):
-                augmented_image = normaugment_transform(rendered_images)
-                encoded_renders = clip_model.encode_image(augmented_image)
-                if not args.no_prompt:
-                    if args.prompt:
-                        if args.clipavg == "view":
-                            if norm_encoded.shape[0] > 1:
-                                normloss -= normweight * torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
-                                                                                 torch.mean(norm_encoded, dim=0),
-                                                                                 dim=0)
-                            else:
-                                normloss -= normweight * torch.cosine_similarity(
-                                    torch.mean(encoded_renders, dim=0, keepdim=True),
-                                    norm_encoded)
-                        else:
-                            normloss -= normweight * torch.mean(
-                                torch.cosine_similarity(encoded_renders, norm_encoded))
-                if args.image:
-                    if encoded_image.shape[0] > 1:
-                        loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
-                                                        torch.mean(encoded_image, dim=0), dim=0)
-                    else:
-                        loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
-                                                        encoded_image)
-                    # if args.image:
-                    #     loss -= torch.mean(torch.cosine_similarity(encoded_renders,encoded_image))
-            if args.splitnormloss:
-                for param in mlp.mlp_normal.parameters():
-                    param.requires_grad = True
-            if args.splitcolorloss:
-                for param in mlp.mlp_rgb.parameters():
-                    param.requires_grad = False
-            if not args.no_prompt:
-                normloss.backward(retain_graph=True)
-
-        # Also run separate loss on the uncolored displacements
-        if args.geoloss:
-            default_color = torch.zeros(len(mesh.vertices), 3).to(device)
-            default_color[:, :] = torch.tensor([0.5, 0.5, 0.5]).to(device)
-            sampled_mesh.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(default_color.unsqueeze(0),
-                                                                                   sampled_mesh.faces)
-            geo_renders, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views,
-                                                                show=args.show,
-                                                                center_azim=args.frontview_center[0],
-                                                                center_elev=args.frontview_center[1],
-                                                                std=args.frontview_std,
-                                                                return_views=True,
-                                                                background=background)
-            if args.n_normaugs > 0:
-                normloss = 0.0
-                ### avgview != aug
-                for _ in range(args.n_normaugs):
-                    augmented_image = displaugment_transform(geo_renders)
+            if n_augs > 0:
+                loss = 0.0
+                for _ in range(n_augs):
+                    augmented_image = augment_transform(rendered_images)
                     encoded_renders = clip_model.encode_image(augmented_image)
-                    if norm_encoded.shape[0] > 1:
-                        normloss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
-                                                            torch.mean(norm_encoded, dim=0), dim=0)
-                    else:
-                        normloss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
-                                                            norm_encoded)
+                    if not args.no_prompt:
+                        if args.prompt:
+                            if args.clipavg == "view":
+                                if encoded_text.shape[0] > 1:
+                                    loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
+                                                                    torch.mean(encoded_text, dim=0), dim=0)
+                                else:
+                                    loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
+                                                                    encoded_text)
+                            else:
+                                loss -= torch.mean(torch.cosine_similarity(encoded_renders, encoded_text))
                     if args.image:
                         if encoded_image.shape[0] > 1:
                             loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
                                                             torch.mean(encoded_image, dim=0), dim=0)
                         else:
                             loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
-                                                            encoded_image)  # if args.image:
+                                                            encoded_image)
+                        # if args.image:
                         #     loss -= torch.mean(torch.cosine_similarity(encoded_renders,encoded_image))
-                # if not args.no_prompt:
-                normloss.backward(retain_graph=True)
-        optim.step()
+            if args.splitnormloss:
+                for param in mlp.mlp_normal.parameters():
+                    param.requires_grad = False
+            loss.backward(retain_graph=True)
 
-        for param in mlp.mlp_normal.parameters():
-            param.requires_grad = True
-        for param in mlp.mlp_rgb.parameters():
-            param.requires_grad = True
+            # optim.step()
 
-        if activate_scheduler:
-            lr_scheduler.step()
+            # with torch.no_grad():
+            #     losses.append(loss.item())
 
-        with torch.no_grad():
-            losses.append(loss.item())
+            # Normal augment transform
+            # loss = 0.0
+            if args.n_normaugs > 0:
+                normloss = 0.0
+                for _ in range(args.n_normaugs):
+                    augmented_image = normaugment_transform(rendered_images)
+                    encoded_renders = clip_model.encode_image(augmented_image)
+                    if not args.no_prompt:
+                        if args.prompt:
+                            if args.clipavg == "view":
+                                if norm_encoded.shape[0] > 1:
+                                    normloss -= normweight * torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
+                                                                                    torch.mean(norm_encoded, dim=0),
+                                                                                    dim=0)
+                                else:
+                                    normloss -= normweight * torch.cosine_similarity(
+                                        torch.mean(encoded_renders, dim=0, keepdim=True),
+                                        norm_encoded)
+                            else:
+                                normloss -= normweight * torch.mean(
+                                    torch.cosine_similarity(encoded_renders, norm_encoded))
+                    if args.image:
+                        if encoded_image.shape[0] > 1:
+                            loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
+                                                            torch.mean(encoded_image, dim=0), dim=0)
+                        else:
+                            loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
+                                                            encoded_image)
+                        # if args.image:
+                        #     loss -= torch.mean(torch.cosine_similarity(encoded_renders,encoded_image))
+                if args.splitnormloss:
+                    for param in mlp.mlp_normal.parameters():
+                        param.requires_grad = True
+                if args.splitcolorloss:
+                    for param in mlp.mlp_rgb.parameters():
+                        param.requires_grad = False
+                if not args.no_prompt:
+                    normloss.backward(retain_graph=True)
 
-        # Adjust normweight if set
-        if args.decayfreq is not None:
-            if i % args.decayfreq == 0:
-                normweight *= args.cropdecay
+            # Also run separate loss on the uncolored displacements
+            if args.geoloss:
+                default_color = torch.zeros(len(mesh.vertices), 3).to(device)
+                default_color[:, :] = torch.tensor([0.5, 0.5, 0.5]).to(device)
+                sampled_mesh.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(default_color.unsqueeze(0),
+                                                                                    sampled_mesh.faces)
+                geo_renders, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views,
+                                                                    show=args.show,
+                                                                    center_azim=args.frontview_center[0],
+                                                                    center_elev=args.frontview_center[1],
+                                                                    std=args.frontview_std,
+                                                                    return_views=True,
+                                                                    background=background)
+                if args.n_normaugs > 0:
+                    normloss = 0.0
+                    ### avgview != aug
+                    for _ in range(args.n_normaugs):
+                        augmented_image = displaugment_transform(geo_renders)
+                        encoded_renders = clip_model.encode_image(augmented_image)
+                        if norm_encoded.shape[0] > 1:
+                            normloss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
+                                                                torch.mean(norm_encoded, dim=0), dim=0)
+                        else:
+                            normloss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
+                                                                norm_encoded)
+                        if args.image:
+                            if encoded_image.shape[0] > 1:
+                                loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
+                                                                torch.mean(encoded_image, dim=0), dim=0)
+                            else:
+                                loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
+                                                                encoded_image)  # if args.image:
+                            #     loss -= torch.mean(torch.cosine_similarity(encoded_renders,encoded_image))
+                    # if not args.no_prompt:
+                    normloss.backward(retain_graph=True)
+            optim.step()
 
-        if i % 100 == 0:
-            report_process(args, dir, i, loss, loss_check, losses, rendered_images)
+            for param in mlp.mlp_normal.parameters():
+                param.requires_grad = True
+            for param in mlp.mlp_rgb.parameters():
+                param.requires_grad = True
 
-    if focus_one_thing:
-        export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, vertices,
-                            old_indice_to_new=old_indice_to_new, new_indice_to_old=new_indice_to_old)
+            if activate_scheduler:
+                lr_scheduler.step()
+
+            with torch.no_grad():
+                losses.append(loss.item())
+
+            # Adjust normweight if set
+            if args.decayfreq is not None:
+                if i % args.decayfreq == 0:
+                    normweight *= args.cropdecay
+
+            if i % 100 == 0:
+                report_process(args, dir, i, loss, loss_check, losses, rendered_images, label)
+
+        if focus_one_thing:
+            pred_rgb, pred_normal = export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, vertices,
+                                old_indice_to_new=old_indice_to_new, new_indice_to_old=new_indice_to_old, label = label)
+            full_pred_normal = full_pred_normal + pred_normal
+            full_pred_rgb = full_pred_rgb + pred_rgb
+        else:
+            export_final_results(args, dir, losses, mesh, mlp, network_input, vertices)
+    if args.with_prior_color:
+        full_base_color = full_mesh.colors.detach().cpu()
     else:
-        export_final_results(args, dir, losses, mesh, mlp, network_input, vertices)
+        full_base_color = torch.full(size=(full_mesh.vertices.shape[0], 3), fill_value=0.5)
+    full_final_color = torch.clamp(full_pred_rgb + full_base_color, 0, 1)
+
+    # FixMe: input vertices should be fixed
+    full_mesh.vertices = full_mesh.vertices.detach().cpu() + full_mesh.vertex_normals.detach().cpu() * full_pred_normal
+
+    objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
+    full_mesh.export(os.path.join(dir, f"all_{objbase}_full_final.obj"), color=full_final_color)
 
 
 
-def report_process(args, dir, i, loss, loss_check, losses, rendered_images):
+def report_process(args, dir, i, loss, loss_check, losses, rendered_images, label):
     print('iter: {} loss: {}'.format(i, loss.item()))
-    torchvision.utils.save_image(rendered_images, os.path.join(dir, 'iter_{}.jpg'.format(i)))
+    torchvision.utils.save_image(rendered_images, os.path.join(dir, 'label_iter_{}.jpg'.format(i)))
     if args.lr_plateau and loss_check is not None:
         new_loss_check = np.mean(losses[-100:])
         # If avg loss increased or plateaued then reduce LR
@@ -376,24 +399,30 @@ def export_final_results(args, dir, losses, mesh, mlp, network_input, vertices):
         # Save final losses
         torch.save(torch.tensor(losses), os.path.join(dir, "losses.pt"))
 
-def export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, vertices, old_indice_to_new=None, new_indice_to_old=None):
+def export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, vertices, old_indice_to_new=None, new_indice_to_old=None, label=None):
     with torch.no_grad():
         pred_rgb, pred_normal = mlp(network_input)
         pred_rgb = pred_rgb.detach().cpu()
         pred_normal = pred_normal.detach().cpu()
 
-        torch.save(pred_rgb, os.path.join(dir, f"colors_final.pt"))
-        torch.save(pred_normal, os.path.join(dir, f"normals_final.pt"))
+        #torch.save(pred_rgb, os.path.join(dir, f"colors_final.pt"))
+        #torch.save(pred_normal, os.path.join(dir, f"normals_final.pt"))
 
-        base_color = torch.full(size=(mesh.vertices.shape[0], 3), fill_value=0.5)
+        if args.with_prior_color:
+            base_color = mesh.colors.detach().cpu()
+        else:
+            base_color = torch.full(size=(mesh.vertices.shape[0], 3), fill_value=0.5)
         final_color = torch.clamp(pred_rgb + base_color, 0, 1)
 
         mesh.vertices = vertices.detach().cpu() + mesh.vertex_normals.detach().cpu() * pred_normal
 
         objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
-        mesh.export(os.path.join(dir, f"{objbase}_final.obj"), color=final_color)
+        mesh.export(os.path.join(dir, f"{label}_{objbase}_final.obj"), color=final_color)
 
-        full_base_color = torch.full(size=(full_mesh.vertices.shape[0], 3), fill_value=0.5)
+        if args.with_prior_color:
+            full_base_color = full_mesh.colors.detach().cpu()
+        else:
+            full_base_color = torch.full(size=(full_mesh.vertices.shape[0], 3), fill_value=0.5)
         full_pred_rgb = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
         full_pred_normal = torch.zeros([full_mesh.vertices.shape[0], 1], dtype=torch.float32)
         for old, new in enumerate(old_indice_to_new):
@@ -401,20 +430,21 @@ def export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, 
                 full_pred_rgb[old] = pred_rgb[new]
                 full_pred_normal[old] = pred_normal[new]
 
-        full_final_color = torch.clamp(full_pred_rgb + full_base_color, 0, 1)
+        #full_final_color = torch.clamp(full_pred_rgb + full_base_color, 0, 1)
 
         # FixMe: input vertices should be fixed
-        full_mesh.vertices = full_mesh.vertices.detach().cpu() + full_mesh.vertex_normals.detach().cpu() * full_pred_normal
+        #full_mesh.vertices = full_mesh.vertices.detach().cpu() + full_mesh.vertex_normals.detach().cpu() * full_pred_normal
 
-        objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
-        full_mesh.export(os.path.join(dir, f"{objbase}_full_final.obj"), color=full_final_color)
+        #objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
+        #full_mesh.export(os.path.join(dir, f"{label}_{objbase}_full_final.obj"), color=full_final_color)
 
         # Run renders
         if args.save_render:
             save_rendered_results(args, dir, final_color, mesh)
 
         # Save final losses
-        torch.save(torch.tensor(losses), os.path.join(dir, "losses.pt"))
+        #torch.save(torch.tensor(losses), os.path.join(dir, "losses.pt"))
+        return full_pred_rgb, full_pred_normal
 
 
 def save_rendered_results(args, dir, final_color, mesh):
@@ -538,6 +568,8 @@ if __name__ == '__main__':
     parser.add_argument('--rand_background', default=False, action='store_true')
     parser.add_argument('--lighting', default=False, action='store_true')
     parser.add_argument('--color_only', default=False, action='store_true')
+    parser.add_argument('--with_prior_color', default=False, action='store_true')
+    parser.add_argument('--label', nargs='+', type=int, default=5)
 
     args = parser.parse_args()
 

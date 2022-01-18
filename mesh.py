@@ -5,6 +5,7 @@ from utils import device
 import copy
 import numpy as np
 import PIL
+import os
 
 class Mesh():
     def __init__(self,obj_path,color=torch.tensor([0.0,0.0,1.0])):
@@ -14,9 +15,15 @@ class Mesh():
             mesh = kal.io.off.import_mesh(obj_path)
         elif ".ply" in obj_path:
             from plyfile import PlyData
+            
             plydata = PlyData.read(obj_path)
+            label_path = obj_path.replace(".ply", ".labels.ply")
+            if os.path.exists(label_path):
+                label_ply_data = PlyData.read(label_path)
+            else:
+                label_ply_data = None
+
             mesh = kal.io.obj.import_mesh(obj_path.replace(".ply", ".obj"), with_normals=True)
-            #mesh = import_ply_mesh(obj_path, with_normals=True, label=8)
         else:
             raise ValueError(f"{obj_path} extension not implemented in mesh reader.")
         self.vertices = mesh.vertices.to(device)
@@ -26,6 +33,7 @@ class Mesh():
         self.texture_map = None
         self.face_uvs = None
         self.labels = None
+        self.colors = None
 
         if ".obj" in obj_path or ".ply" in obj_path:
             # if mesh.uvs.numel() > 0:
@@ -44,11 +52,25 @@ class Mesh():
                 # Normalize
                 self.face_normals = torch.nn.functional.normalize(self.face_normals)
         if ".ply" in obj_path:
+            if label_ply_data == None:
+                label_ply_data = plydata
             labels = []
-            for i in plydata.elements[0].data:
+            for i in label_ply_data.elements[0].data:
                 labels.append(i['label'])
             self.labels = torch.FloatTensor(labels)
             del labels
+
+        if ".ply" in obj_path:
+            if 'red' in plydata.elements[0] and 'green' in plydata.elements[0] and 'blue' in plydata.elements[0] and 'alpha' in plydata.elements[0]:
+                red = torch.FloatTensor(plydata.elements[0]['red'])
+                green = torch.FloatTensor(plydata.elements[0]['green'])
+                blue = torch.FloatTensor(plydata.elements[0]['blue'])
+                alpha = torch.FloatTensor(plydata.elements[0]['alpha'])
+                assert red.shape[0] == green.shape[0] == blue.shape[0] == alpha.shape[0]
+                red = red/alpha
+                green = green/alpha
+                blue = blue/alpha
+                self.colors = torch.stack([red, green, blue], dim=-1).to(device)
 
         self.set_mesh_color(color)
 
@@ -105,10 +127,10 @@ class Mesh():
             for face in self.faces:
                 f.write("f %d %d %d\n" % (face[0] + 1, face[1] + 1, face[2] + 1))
 
-    def mask_mesh(self):
+    def mask_mesh(self, text_label):
 
         # focus on only one things with labels
-        text_label = 5
+        # FixMe: text_label should be fixed
 
         ver_mask = self.labels.eq(text_label)
 
@@ -120,6 +142,10 @@ class Mesh():
         mesh = copy.deepcopy(self)
         mesh.vertices = self.vertices[ver_mask]
         mesh.vertex_normals = self.vertex_normals[ver_mask]
+
+        if self.colors is not None:
+            mesh.colors = self.colors[ver_mask]
+
 
         # create new indices
         old_indice_to_new = []

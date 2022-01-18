@@ -1,8 +1,8 @@
-CUDA_VISIBLE_DEVICES=3 python -m pdb sem_seg_main.py \
+CUDA_VISIBLE_DEVICES=0 python -m pdb sem_seg_main.py \
         --run branch \
-        --obj_path data/source_meshes/scene0005_00.ply \
-        --output_dir results/demo/room/scene0005_00 \
-        --prompt "some chairs made of colorful flowers" \
+        --obj_path data/scene0002_00/scene0002_00_vh_clean_2.ply \
+        --output_dir results/demo/room/scene0002_00/more_labels/four_label_color_place \
+        --prompt "a room with some iron doors, a room with marble floors, a room with some wooden chairs, a room with a leather sofa" \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \
@@ -21,11 +21,11 @@ CUDA_VISIBLE_DEVICES=3 python -m pdb sem_seg_main.py \
         --maxcrop 1.0 \
         --save_render \
         --seed 11 \
-        --n_iter 300 \
+        --n_iter 1000 \
         --learning_rate 0.0005 \
         --normal_learning_rate 0.0005 \
         --background 1 1 1 \
-        --frontview_center 2.0707 0.5303 \
+        --frontview_center 1.8707 0.6303 \
         --lighting \
+        --label 8 2 5 6 \
         --normratio 0.05
-
