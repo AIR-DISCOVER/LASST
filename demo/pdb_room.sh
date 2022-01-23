@@ -1,7 +1,7 @@
 CUDA_VISIBLE_DEVICES=0 python -m pdb sem_seg_main.py \
         --run branch \
         --obj_path data/scene0002_00/scene0002_00_vh_clean_2.ply \
-        --output_dir results/demo/room/scene0002_00/more_labels/four_label_color_place \
+        --output_dir results/demo/room/scene0002_00/more_labels_with_env_color/four_label_color_only \
         --prompt "a room with some iron doors, a room with marble floors, a room with some wooden chairs, a room with a leather sofa" \
         --sigma 5.0  \
         --clamp tanh \
@@ -28,4 +28,5 @@ CUDA_VISIBLE_DEVICES=0 python -m pdb sem_seg_main.py \
         --frontview_center 1.8707 0.6303 \
         --lighting \
         --label 8 2 5 6 \
-        --normratio 0.05
+        --normratio 0.05 \
+        --color_only

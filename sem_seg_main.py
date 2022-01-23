@@ -57,6 +57,7 @@ def run_branched(args):
     focus_one_thing = True
     full_pred_rgb = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
     full_pred_normal = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
+    mesh_with_label_mask = torch.zeros([full_mesh.vertices.shape[0]]).eq(1)
     for label_order, label in enumerate(args.label):
         if focus_one_thing:
             mesh, old_indice_to_new, new_indice_to_old = full_mesh.mask_mesh(label)
@@ -344,13 +345,27 @@ def run_branched(args):
                                 old_indice_to_new=old_indice_to_new, new_indice_to_old=new_indice_to_old, label = label)
             full_pred_normal = full_pred_normal + pred_normal
             full_pred_rgb = full_pred_rgb + pred_rgb
+            mesh_with_label_mask = mesh_with_label_mask + full_mesh.labels.eq(label)
+
         else:
             export_final_results(args, dir, losses, mesh, mlp, network_input, vertices)
     if args.with_prior_color:
+        # if there's label, use 0.5 value, else use original color
         full_base_color = full_mesh.colors.detach().cpu()
+        full_final_color = torch.clamp(full_pred_rgb + full_base_color, 0, 1)
     else:
+        full_final_color = torch.zeros(size=(full_mesh.vertices.shape[0], 3))
         full_base_color = torch.full(size=(full_mesh.vertices.shape[0], 3), fill_value=0.5)
-    full_final_color = torch.clamp(full_pred_rgb + full_base_color, 0, 1)
+        pred_final_color = torch.clamp(full_pred_rgb + full_base_color, 0, 1)
+        prior_color = full_mesh.colors.detach().cpu()
+
+        for i,j in enumerate(mesh_with_label_mask):
+            if j:
+                full_final_color[i] = pred_final_color[i]
+            else:
+                full_final_color[i] = prior_color[i]
+
+    
 
     # FixMe: input vertices should be fixed
     full_mesh.vertices = full_mesh.vertices.detach().cpu() + full_mesh.vertex_normals.detach().cpu() * full_pred_normal
