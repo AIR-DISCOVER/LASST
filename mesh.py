@@ -167,3 +167,15 @@ class Mesh():
         mesh.face_attributes = self.face_attributes[0][face_mask].unsqueeze(0)
 
         return mesh, old_indice_to_new, new_indice_to_old
+
+    def get_mask(self, text_label):
+
+        ver_mask = self.labels.eq(text_label).to(torch.long).to(device)
+
+        face_num = self.faces.shape[0]
+        face_mask = torch.ones([face_num]).eq(1).to(device)
+        for i in range(face_num):
+            face_mask[i] = ver_mask[self.faces[i]].all()
+
+        face_mask = face_mask.to(torch.long)
+        return ver_mask, face_mask
