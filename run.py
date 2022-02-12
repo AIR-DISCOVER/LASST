@@ -1,16 +1,23 @@
 # %%
-from random import shuffle
+from random import shuffle, random, randint
 from launch import launch
 import sys
 import os
 from datetime import datetime
 
+SCENE_LIST = os.listdir('/home/tb5zhh/data/full/train')
+
+DATE = '2022-02-10'
+# 2022-02-07: randomly choose: scene_id, label_id, texture, one class in one scene at a time e.g. "a rusted door"
+# 2022-02-10: new textures, and keep only the textures as prompt e.g. "Nebula"
+# 2022-02-12: adopt new textures and apply those to all classes in a scene
+
 COMMAND = f'python sem_seg_main.py \
         --run branch \
-        --obj_path data/scene0002_00/scene0002_00_vh_clean_2.ply \
-        --output_dir results/batch/scene0002_00/{datetime.today().strftime("%Y-%m-%d")}/$NAME$ \
+        --obj_path $SCENE_ID$ \
+        --output_dir \"results/batch/{DATE}/$SCENE_ID$/$NAME$\" \
         --prompt \"$PROMPT$\" \
-        --label 2 5 6 8\
+        --label $LABEL_ID$\
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \
@@ -32,50 +39,86 @@ COMMAND = f'python sem_seg_main.py \
         --n_iter 1000 \
         --learning_rate 0.0005 \
         --normal_learning_rate 0.0005 \
-        --background 1 1 1 \
+        --background 0.5 0.5 0.5 \
+        --rand_background \
         --frontview_center 1.8707 0.6303 \
-        --lighting \
+        --with_prior_color \
         --normratio 0.05 \
         --color_only \
         --render_all_grad_one \
         --focus_one_thing'
 
 TEXTURE = [
-    'wooden',
-    'painted',
-    'glass',
-    'metal',
-    'brick',
-    'plastic',
-    'shiny',
-    'rusted',
+    'Milky Way',
+    'Clouds at sunset',
+    'Snow mountain',
+    'Emerald',
+    'Pluto',
+    'Planet Earth',
+    'Oranges',
+    'Blue Sky',
+    'Neon',
+    'Smile',
+    'Clown',
+    'Tides',
+    'Nebula',
+    'Fireworks',
+    'Spring',
+    'Zebra',
+    'Van Gogh',
+    'Picasso',
+    'Blurred',
+    'Fire',
+    'Parallel',
+    'Mosaic',
+    "Natural",
+    'Grass',
+    'Garden',
+    'Factory',
+    'Zoo',
+    'Mars',
+    'Warm House',
+    'Time',
+    'Wormhole',
+    'Haunted House'
 ]
 
-SCENES = [
-    'on the beach',
-    'in the forest',
-    'under the sea',
-    'in the sky',
-    'in the rain',
-    'during sunset',
-    'at the midnight',
-]
-
-CLS_NAME = ['floor', 'chair', 'sofa', 'door']
-# 2 floor
-# 5 chair
-# 6 sofa
-# 8 door
+CLASS_LABELS = ('null', 'wall', 'floor', 'cabinet', 'bed', 'chair', 'sofa', 'table', 'door', 'window', 'bookshelf', 'picture', 'counter', 'desk', 'curtain',
+                'refrigerator', 'shower curtain', 'toilet', 'sink', 'bathtub', 'otherfurniture',)
 
 n2i = lambda n, set: (n // (len(set)**3) % len(set), n //
                       (len(set)**2) % len(set), n //
                       (len(set)) % len(set), n % len(set))
 
+from IPython import embed
+while True:
+# for i in range(1):
+    label_id = randint(1, len(CLASS_LABELS) - 2)
+    scene_id = SCENE_LIST[randint(0, len(SCENE_LIST) - 1)].strip('.ply')
+    # if random() > 0.5:
+    tex_id = randint(0, len(TEXTURE) - 1)
+    # prompt = f"a {TEXTURE[tex_id]} {CLASS_LABELS[label_id]}"
+    prompt = f"{TEXTURE[tex_id]}"
+    # else:
+    #     env_id = randint(0, len(ENVS) - 1)
+    #     prompt = f"a {CLASS_LABELS[label_id]} {ENVS[env_id]}"
+        
+    name = f"{label_id}-{prompt}"
+
+    command = COMMAND.replace('$NAME$', str(name)).replace('$PROMPT$', str(prompt)).replace('$LABEL_ID$', str(label_id)).replace('$SCENE_ID$', str(scene_id))
+    if os.path.isdir(f'results/batch/{DATE}/{scene_id}/{name}'):
+        continue
+    os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
+    print(f"{scene_id}/{name}")
+    # print(command, file=sys.stderr) 
+    os.system(command)
+
+exit(0)
 texture_total = len(TEXTURE)**4
 t_commands = []
 for i in range(texture_total):
     idxs = n2i(i, TEXTURE)
-    plist = [f'a {TEXTURE[idxs[k]]} {CLS_NAME[k]}' for k in range(4)]
+    plist = [f'a {TEXTURE[idxs[k]]} {CLASS_LABELS[k]}' for k in range(4)]
     prompt = ', '.join(plist)
     name = '-'.join(('_'.join(i.split()) for i in plist))
     t_commands.append(
@@ -83,8 +126,8 @@ for i in range(texture_total):
 shuffle(t_commands)
 
 s_commands = []
-for scene in SCENES:
-    plist = [f'a {CLS_NAME[k]} {scene}' for k in range(4)]
+for scene in ENVS:
+    plist = [f'a {CLASS_LABELS[k]} {scene}' for k in range(4)]
     prompt = ', '.join(plist)
     name = '-'.join(('_'.join(i.split()) for i in plist))
     s_commands.append(
@@ -92,6 +135,7 @@ for scene in SCENES:
 
 # FIXME
 commands = s_commands[4:] + t_commands
+shuffle(t_commands)
 
 card = sys.argv[1].split(',')
 envss = [os.environ.copy() for i in range(len(card))]

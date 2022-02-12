@@ -6,7 +6,7 @@ import torch
 from neural_style_field import NeuralStyleField
 from utils import device
 from render import Renderer
-from mesh import Mesh
+from mesh_scannet import Mesh
 from utils import clip_model
 from Normalization import MeshNormalizer
 from utils import preprocess, add_vertices, sample_bary
@@ -21,6 +21,7 @@ from pathlib import Path
 from torchvision import transforms
 
 def run_branched(args):
+    dir = args.output_dir
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
     # Constrain all sources of randomness
@@ -29,8 +30,8 @@ def run_branched(args):
     torch.cuda.manual_seed_all(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = False
 
     objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
     # Check that isn't already done
@@ -61,7 +62,7 @@ def run_branched(args):
     for label_order, label in enumerate(args.label):
         if args.focus_one_thing:
             if not (full_mesh.labels==label).any():
-                print("label {label} is not in this mesh")
+                print(f"label {label} is not in this mesh")
                 continue
             ver_mask, face_mask = full_mesh.get_mask(label)
             if args.render_all_grad_one:
@@ -94,7 +95,7 @@ def run_branched(args):
         losses = []
 
         n_augs = args.n_augs
-        dir = args.output_dir
+        # dir = args.output_dir
         clip_normalizer = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
         # CLIP Transform
         clip_transform = transforms.Compose([
@@ -360,10 +361,12 @@ def run_branched(args):
                 pred_rgb = pred_rgb * cpu_ver_mask.unsqueeze(dim=-1)
             full_pred_normal = full_pred_normal + pred_normal
             full_pred_rgb = full_pred_rgb + pred_rgb
-            full_final_mask = full_final_mask + cpu_ver_mask
-            del pred_normal
-            del pred_rgb
-            del cpu_ver_mask
+            
+            if args.render_all_grad_one:
+                full_final_mask = full_final_mask + cpu_ver_mask
+                del pred_normal
+                del pred_rgb
+                del cpu_ver_mask
 
         else:
             export_final_results(args, dir, losses, mesh, mlp, network_input, vertices)
@@ -415,7 +418,10 @@ def export_final_results(args, dir, losses, mesh, mlp, network_input, vertices):
         base_color = torch.full(size=(mesh.vertices.shape[0], 3), fill_value=0.5)
         final_color = torch.clamp(pred_rgb + base_color, 0, 1)
 
-        mesh.vertices = vertices.detach().cpu() + mesh.vertex_normals.detach().cpu() * pred_normal
+        if args.color_only:
+            mesh.vertices = vertices.detach().cpu() + mesh.vertex_normals.detach().cpu() * pred_normal
+        else:
+            mesh.vertices = vertices.detach().cpu()
 
         objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
         mesh.export(os.path.join(dir, f"{objbase}_final.obj"), color=final_color)

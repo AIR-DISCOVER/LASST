@@ -1,78 +1,37 @@
-import kaolin as kal
 import torch
 import utils
 from utils import device
 import copy
 import numpy as np
 import PIL
-import os
-
-
+from plyfile import PlyData
+DEVICE = torch.device("cuda:0")
+from IPython import embed
 class Mesh():
-    def __init__(self,obj_path,color=torch.tensor([0.0,0.0,1.0])):
-        if ".obj" in obj_path:
-            mesh = kal.io.obj.import_mesh(obj_path, with_normals=True)
-        elif ".off" in obj_path:
-            mesh = kal.io.off.import_mesh(obj_path)
-        elif ".ply" in obj_path:
-            from plyfile import PlyData
-            
-            plydata = PlyData.read(obj_path)
-            label_path = obj_path.replace(".ply", ".labels.ply")
-            if os.path.exists(label_path):
-                label_ply_data = PlyData.read(label_path)
-            else:
-                label_ply_data = None
+    """Load Mesh from ply files (from full and full_mesh)"""
+    FULL_PATH = '/home/tb5zhh/data/full/train'
+    FULL_MESH_PATH = '/home/tb5zhh/data/full_mesh/train'
 
-            mesh = kal.io.obj.import_mesh(obj_path.replace(".ply", ".obj"), with_normals=True)
-        else:
-            raise ValueError(f"{obj_path} extension not implemented in mesh reader.")
-        self.vertices = mesh.vertices.to(device)
-        self.faces = mesh.faces.to(device)
-        self.vertex_normals = None
-        self.face_normals = None
-        self.texture_map = None
-        self.face_uvs = None
-        self.labels = None
-        self.colors = None
+    def __init__(self, scan_id, color=torch.tensor([0.0,0.0,1.0])) -> None:
+        full_ply_path = f"{self.FULL_PATH}/{scan_id}.ply"
+        full_mesh_ply_path = f"{self.FULL_MESH_PATH}/{scan_id}.ply"
 
-        if ".obj" in obj_path or ".ply" in obj_path:
-            # if mesh.uvs.numel() > 0:
-            #     uvs = mesh.uvs.unsqueeze(0).to(device)
-            #     face_uvs_idx = mesh.face_uvs_idx.to(device)
-            #     self.face_uvs = kal.ops.mesh.index_vertices_by_faces(uvs, face_uvs_idx).detach()
-            if mesh.vertex_normals is not None:
-                self.vertex_normals = mesh.vertex_normals.to(device).float()
+        full_plydata = PlyData.read(full_ply_path)
+        full_mesh_plydata = PlyData.read(full_mesh_ply_path)
 
-                # Normalize
-                self.vertex_normals = torch.nn.functional.normalize(self.vertex_normals)
+        meshes = []
+        for i in range(len(full_mesh_plydata['face'])):
+            meshes.append(full_mesh_plydata['face'][i][0])
+        self.faces : torch.Tensor = torch.as_tensor(np.stack(meshes)).to(DEVICE).to(torch.long)
 
-            if mesh.face_normals is not None:
-                self.face_normals = mesh.face_normals.to(device).float()
+        self.labels : torch.Tensor = torch.as_tensor(np.asarray(full_plydata['vertex']['label'])).to(DEVICE)
+        self.colors : torch.Tensor = torch.as_tensor(np.stack((full_plydata['vertex']['red']/256, full_plydata['vertex']['green']/256, full_plydata['vertex']['blue']/256),axis=1)).to(DEVICE).to(dtype=torch.float)
+        self.vertices : torch.Tensor = torch.as_tensor(np.stack((full_mesh_plydata['vertex']['x'],full_mesh_plydata['vertex']['y'],full_mesh_plydata['vertex']['z']),axis=1)).to(DEVICE)
 
-                # Normalize
-                self.face_normals = torch.nn.functional.normalize(self.face_normals)
-        if ".ply" in obj_path:
-            if label_ply_data == None:
-                label_ply_data = plydata
-            labels = []
-            for i in label_ply_data.elements[0].data:
-                labels.append(i['label'])
-            self.labels = torch.FloatTensor(labels)
-            del labels
-
-        if ".ply" in obj_path:
-            if 'red' in plydata.elements[0] and 'green' in plydata.elements[0] and 'blue' in plydata.elements[0] and 'alpha' in plydata.elements[0]:
-                red = torch.FloatTensor(plydata.elements[0]['red'])
-                green = torch.FloatTensor(plydata.elements[0]['green'])
-                blue = torch.FloatTensor(plydata.elements[0]['blue'])
-                alpha = torch.FloatTensor(plydata.elements[0]['alpha'])
-                assert red.shape[0] == green.shape[0] == blue.shape[0] == alpha.shape[0]
-                red = red/alpha
-                green = green/alpha
-                blue = blue/alpha
-                self.colors = torch.stack([red, green, blue], dim=-1).to(device)
-
+        self.vertex_normals : torch.Tensor = None
+        self.face_normals : torch.Tensor = None
+        self.texture_map : torch.Tensor = None
+        self.face_uvs : torch.Tensor = None
         self.set_mesh_color(color)
 
     def standardize_mesh(self,inplace=False):
@@ -128,7 +87,7 @@ class Mesh():
             for face in self.faces:
                 f.write("f %d %d %d\n" % (face[0] + 1, face[1] + 1, face[2] + 1))
 
-    def mask_mesh(self, text_label):
+    def mask_mesh(self, text_label, normals=False):
 
         # focus on only one things with labels
         # FixMe: text_label should be fixed
@@ -142,7 +101,8 @@ class Mesh():
 
         mesh = copy.deepcopy(self)
         mesh.vertices = self.vertices[ver_mask]
-        mesh.vertex_normals = self.vertex_normals[ver_mask]
+        if normals:
+            mesh.vertex_normals = self.vertex_normals[ver_mask]
 
         if self.colors is not None:
             mesh.colors = self.colors[ver_mask]
@@ -164,7 +124,8 @@ class Mesh():
 
         mesh.faces = self.faces[face_mask]
         mesh.faces = old_indice_to_new[mesh.faces].to(device)
-        mesh.face_normals = self.face_normals[face_mask]
+        if normals:
+            mesh.face_normals = self.face_normals[face_mask]
         mesh.face_attributes = self.face_attributes[0][face_mask].unsqueeze(0)
 
         return mesh, old_indice_to_new, new_indice_to_old
@@ -177,6 +138,5 @@ class Mesh():
         face_mask = torch.ones([face_num]).eq(1).to(device)
         for i in range(face_num):
             face_mask[i] = ver_mask[self.faces[i]].all()
-
         face_mask = face_mask.to(torch.long)
         return ver_mask, face_mask
