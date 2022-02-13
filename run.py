@@ -7,7 +7,7 @@ from datetime import datetime
 
 SCENE_LIST = os.listdir('/home/tb5zhh/data/full/train')
 
-DATE = '2022-02-12'
+DATE = '2022-02-13'
 # 2022-02-07: randomly choose: scene_id, label_id, texture, one class in one scene at a time e.g. "a rusted door"
 # 2022-02-10: new textures, and keep only the textures as prompt e.g. "Nebula"
 # 2022-02-12: adopt new textures and apply those to all classes in a scene
@@ -49,13 +49,18 @@ COMMAND = f'python sem_seg_main.py \
         --focus_one_thing'
 
 TEXTURE = [
-    'Milky Way',
-    'clouds at sunset',
-    'snow mountain',
-    'blue Sky',
-    'zebra',
-    'van Gogh',
-    'blue sea'
+    'wooden',
+    'metal',
+    'paper',
+    'marble',
+    'plastic',
+    'leather',
+    'stone',
+    'ceramic',
+    'plaster', 
+    'silver',
+    'pearl',
+    'diamond',
 ]
 
 CLASS_LABELS = ('null', 'wall', 'floor', 'cabinet', 'bed', 'chair', 'sofa', 'table', 'door', 'window', 'bookshelf', 'picture', 'counter', 'desk', 'curtain',
