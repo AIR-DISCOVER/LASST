@@ -7,7 +7,7 @@ from datetime import datetime
 
 SCENE_LIST = os.listdir('/home/tb5zhh/data/full/train')
 
-DATE = '2022-02-10'
+DATE = '2022-02-12'
 # 2022-02-07: randomly choose: scene_id, label_id, texture, one class in one scene at a time e.g. "a rusted door"
 # 2022-02-10: new textures, and keep only the textures as prompt e.g. "Nebula"
 # 2022-02-12: adopt new textures and apply those to all classes in a scene
@@ -17,7 +17,7 @@ COMMAND = f'python sem_seg_main.py \
         --obj_path $SCENE_ID$ \
         --output_dir \"results/batch/{DATE}/$SCENE_ID$/$NAME$\" \
         --prompt \"$PROMPT$\" \
-        --label $LABEL_ID$\
+        --label 1 2 3 4 5 6 7 8 9 10 11 12 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \
@@ -50,37 +50,12 @@ COMMAND = f'python sem_seg_main.py \
 
 TEXTURE = [
     'Milky Way',
-    'Clouds at sunset',
-    'Snow mountain',
-    'Emerald',
-    'Pluto',
-    'Planet Earth',
-    'Oranges',
-    'Blue Sky',
-    'Neon',
-    'Smile',
-    'Clown',
-    'Tides',
-    'Nebula',
-    'Fireworks',
-    'Spring',
-    'Zebra',
-    'Van Gogh',
-    'Picasso',
-    'Blurred',
-    'Fire',
-    'Parallel',
-    'Mosaic',
-    "Natural",
-    'Grass',
-    'Garden',
-    'Factory',
-    'Zoo',
-    'Mars',
-    'Warm House',
-    'Time',
-    'Wormhole',
-    'Haunted House'
+    'clouds at sunset',
+    'snow mountain',
+    'blue Sky',
+    'zebra',
+    'van Gogh',
+    'blue sea'
 ]
 
 CLASS_LABELS = ('null', 'wall', 'floor', 'cabinet', 'bed', 'chair', 'sofa', 'table', 'door', 'window', 'bookshelf', 'picture', 'counter', 'desk', 'curtain',
@@ -92,20 +67,20 @@ n2i = lambda n, set: (n // (len(set)**3) % len(set), n //
 
 from IPython import embed
 while True:
-# for i in range(1):
-    label_id = randint(1, len(CLASS_LABELS) - 2)
+    # label_id = randint(1, len(CLASS_LABELS) - 2)
     scene_id = SCENE_LIST[randint(0, len(SCENE_LIST) - 1)].strip('.ply')
     # if random() > 0.5:
-    tex_id = randint(0, len(TEXTURE) - 1)
+    tex_id = [randint(0, len(TEXTURE) - 1) for _ in range(12)]
     # prompt = f"a {TEXTURE[tex_id]} {CLASS_LABELS[label_id]}"
-    prompt = f"{TEXTURE[tex_id]}"
+
+    prompt = f"{','.join([TEXTURE[i] for i in tex_id])}"
     # else:
     #     env_id = randint(0, len(ENVS) - 1)
     #     prompt = f"a {CLASS_LABELS[label_id]} {ENVS[env_id]}"
         
-    name = f"{label_id}-{prompt}"
+    name = f"{prompt}"
 
-    command = COMMAND.replace('$NAME$', str(name)).replace('$PROMPT$', str(prompt)).replace('$LABEL_ID$', str(label_id)).replace('$SCENE_ID$', str(scene_id))
+    command = COMMAND.replace('$NAME$', str(name)).replace('$PROMPT$', str(prompt)).replace('$SCENE_ID$', str(scene_id))
     if os.path.isdir(f'results/batch/{DATE}/{scene_id}/{name}'):
         continue
     os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]

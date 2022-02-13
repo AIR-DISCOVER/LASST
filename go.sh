@@ -1,9 +1,9 @@
 python sem_seg_main.py \
         --run branch \
         --obj_path scene0000_00 \
-        --output_dir results/test/firework_3 \
-        --prompt fireworks \
-        --label 1 \
+        --output_dir results/test/all_in_one \
+        --prompt "blue sky,clouds at sunset" \
+        --label 1 2 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \
@@ -22,7 +22,7 @@ python sem_seg_main.py \
         --maxcrop 1.0 \
         --save_render \
         --seed 11 \
-        --n_iter 2000 \
+        --n_iter 100 \
         --learning_rate 0.0005 \
         --normal_learning_rate 0.0005 \
         --background 0.5 0.5 0.5 \
