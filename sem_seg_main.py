@@ -54,17 +54,28 @@ def run_branched(args):
     render = Renderer()
     full_mesh = Mesh(args.obj_path)
 
-    focus_one_thing = True
+    #focus_one_thing = True
     full_pred_rgb = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
     full_pred_normal = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
-    mesh_with_label_mask = torch.zeros([full_mesh.vertices.shape[0]]).eq(1)
+    full_final_mask = torch.zeros([full_mesh.vertices.shape[0]], dtype=torch.float32)
     for label_order, label in enumerate(args.label):
-        if focus_one_thing:
-            mesh, old_indice_to_new, new_indice_to_old = full_mesh.mask_mesh(label)
+        if args.focus_one_thing:
+            if not (full_mesh.labels==label).any():
+                print("label {label} is not in this mesh")
+                continue
+            ver_mask, face_mask = full_mesh.get_mask(label)
+            if args.render_all_grad_one:
+                mesh = copy.deepcopy(full_mesh)
+                old_indice_to_new = None
+                new_indice_to_old = None
+            else:
+                mesh, old_indice_to_new, new_indice_to_old = full_mesh.mask_mesh(label)
         else:
-            mesh = full_mesh
+            mesh = copy.deepcopy(full_mesh)
             old_indice_to_new = None
             new_indice_to_old = None
+            ver_mask = None
+            face_mask = None
 
         MeshNormalizer(mesh)()
 
@@ -184,7 +195,7 @@ def run_branched(args):
 
             sampled_mesh = mesh
 
-            update_mesh(mlp, network_input, prior_color, sampled_mesh, vertices, color_only = args.color_only)
+            update_mesh(args, mlp, network_input, prior_color, sampled_mesh, vertices, ver_mask=ver_mask)
             rendered_images, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views, lighting=args.lighting,
                                                                     show=args.show,
                                                                     center_azim=args.frontview_center[0],
@@ -192,7 +203,8 @@ def run_branched(args):
                                                                     std=args.frontview_std,
                                                                     return_views=True,
                                                                     background=background,
-                                                                    rand_background=args.rand_background)
+                                                                    rand_background=args.rand_background,
+                                                                    rand_focal=args.rand_focal)
 
             if n_augs == 0:
                 clip_image = clip_transform(rendered_images)
@@ -340,12 +352,19 @@ def run_branched(args):
             if i % 100 == 0:
                 report_process(args, dir, i, loss, loss_check, losses, rendered_images, label)
 
-        if focus_one_thing:
+        if args.focus_one_thing:
             pred_rgb, pred_normal = export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, vertices,
                                 old_indice_to_new=old_indice_to_new, new_indice_to_old=new_indice_to_old, label = label)
+            if args.render_all_grad_one:
+                cpu_ver_mask = ver_mask.detach().cpu()
+                pred_normal = pred_rgb * cpu_ver_mask.unsqueeze(dim=-1)
+                pred_rgb = pred_rgb * cpu_ver_mask.unsqueeze(dim=-1)
             full_pred_normal = full_pred_normal + pred_normal
             full_pred_rgb = full_pred_rgb + pred_rgb
-            mesh_with_label_mask = mesh_with_label_mask + full_mesh.labels.eq(label)
+            full_final_mask = full_final_mask + cpu_ver_mask
+            del pred_normal
+            del pred_rgb
+            del cpu_ver_mask
 
         else:
             export_final_results(args, dir, losses, mesh, mlp, network_input, vertices)
@@ -354,21 +373,16 @@ def run_branched(args):
         full_base_color = full_mesh.colors.detach().cpu()
         full_final_color = torch.clamp(full_pred_rgb + full_base_color, 0, 1)
     else:
-        full_final_color = torch.zeros(size=(full_mesh.vertices.shape[0], 3))
         full_base_color = torch.full(size=(full_mesh.vertices.shape[0], 3), fill_value=0.5)
         pred_final_color = torch.clamp(full_pred_rgb + full_base_color, 0, 1)
-        prior_color = full_mesh.colors.detach().cpu()
-
-        for i,j in enumerate(mesh_with_label_mask):
-            if j:
-                full_final_color[i] = pred_final_color[i]
-            else:
-                full_final_color[i] = prior_color[i]
-
-    
+        full_prior_color = full_mesh.colors.detach().cpu()
+        full_final_color = pred_final_color*(full_final_mask.unsqueeze(dim=-1)) + full_prior_color*((1-full_final_mask).unsqueeze(dim=-1))
 
     # FixMe: input vertices should be fixed
-    full_mesh.vertices = full_mesh.vertices.detach().cpu() + full_mesh.vertex_normals.detach().cpu() * full_pred_normal
+    if args.color_only:
+        full_mesh.vertices = full_mesh.vertices.detach().cpu()
+    else:
+        full_mesh.vertices = full_mesh.vertices.detach().cpu() + full_mesh.vertex_normals.detach().cpu() * full_pred_normal
 
     objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
     full_mesh.export(os.path.join(dir, f"all_{objbase}_full_final.obj"), color=full_final_color)
@@ -377,7 +391,7 @@ def run_branched(args):
 
 def report_process(args, dir, i, loss, loss_check, losses, rendered_images, label):
     print('iter: {} loss: {}'.format(i, loss.item()))
-    torchvision.utils.save_image(rendered_images, os.path.join(dir, 'label_iter_{}.jpg'.format(i)))
+    torchvision.utils.save_image(rendered_images, os.path.join(dir, 'label_{}_iter_{}.jpg'.format(label, i)))
     if args.lr_plateau and loss_check is not None:
         new_loss_check = np.mean(losses[-100:])
         # If avg loss increased or plateaued then reduce LR
@@ -423,27 +437,33 @@ def export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, 
         #torch.save(pred_rgb, os.path.join(dir, f"colors_final.pt"))
         #torch.save(pred_normal, os.path.join(dir, f"normals_final.pt"))
 
-        if args.with_prior_color:
-            base_color = mesh.colors.detach().cpu()
-        else:
-            base_color = torch.full(size=(mesh.vertices.shape[0], 3), fill_value=0.5)
-        final_color = torch.clamp(pred_rgb + base_color, 0, 1)
+        # if args.with_prior_color:
+        #     base_color = mesh.colors.detach().cpu()
+        # else:
+        #     base_color = torch.full(size=(mesh.vertices.shape[0], 3), fill_value=0.5)
+        # final_color = torch.clamp(pred_rgb + base_color, 0, 1)
 
-        mesh.vertices = vertices.detach().cpu() + mesh.vertex_normals.detach().cpu() * pred_normal
+        # TODO: export train result with only one label, because in this version mesh is full_mesh
+        #mesh.vertices = vertices.detach().cpu() + mesh.vertex_normals.detach().cpu() * pred_normal
 
-        objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
-        mesh.export(os.path.join(dir, f"{label}_{objbase}_final.obj"), color=final_color)
+        #objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
+        #mesh.export(os.path.join(dir, f"{label}_{objbase}_final.obj"), color=final_color)
 
-        if args.with_prior_color:
-            full_base_color = full_mesh.colors.detach().cpu()
-        else:
-            full_base_color = torch.full(size=(full_mesh.vertices.shape[0], 3), fill_value=0.5)
+        # if args.with_prior_color:
+        #     full_base_color = full_mesh.colors.detach().cpu()
+        # else:
+        #     full_base_color = torch.full(size=(full_mesh.vertices.shape[0], 3), fill_value=0.5)
         full_pred_rgb = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
         full_pred_normal = torch.zeros([full_mesh.vertices.shape[0], 1], dtype=torch.float32)
-        for old, new in enumerate(old_indice_to_new):
-            if new != -1:
-                full_pred_rgb[old] = pred_rgb[new]
-                full_pred_normal[old] = pred_normal[new]
+
+        if args.render_all_grad_one:
+            full_pred_rgb = pred_rgb
+            full_pred_normal = pred_normal
+        elif args.focus_one_thing:
+            for old, new in enumerate(old_indice_to_new):
+                if new != -1:
+                    full_pred_rgb[old] = pred_rgb[new]
+                    full_pred_normal[old] = pred_normal[new]
 
         #full_final_color = torch.clamp(full_pred_rgb + full_base_color, 0, 1)
 
@@ -454,8 +474,8 @@ def export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, 
         #full_mesh.export(os.path.join(dir, f"{label}_{objbase}_full_final.obj"), color=full_final_color)
 
         # Run renders
-        if args.save_render:
-            save_rendered_results(args, dir, final_color, mesh)
+        # if args.save_render:
+        #     save_rendered_results(args, dir, final_color, mesh)
 
         # Save final losses
         #torch.save(torch.tensor(losses), os.path.join(dir, "losses.pt"))
@@ -500,18 +520,23 @@ def save_rendered_results(args, dir, final_color, mesh):
     img.save(os.path.join(dir, f"final_cluster.png"))
 
 
-def update_mesh(mlp, network_input, prior_color, sampled_mesh, vertices, color_only):
+def update_mesh(args, mlp, network_input, prior_color, sampled_mesh, vertices, ver_mask=None):
     pred_rgb, pred_normal = mlp(network_input)
+
+    if args.render_all_grad_one:
+        pred_rgb = pred_rgb*ver_mask.unsqueeze(dim=-1)
+        pred_normal = pred_normal*ver_mask.unsqueeze(dim=-1)
 
     # sampled_mesh refers to the focused thing
     sampled_mesh.face_attributes = prior_color + kaolin.ops.mesh.index_vertices_by_faces(
         pred_rgb.unsqueeze(0),
         sampled_mesh.faces)
-    if color_only:
+    if args.color_only:
         sampled_mesh.vertices = vertices
     else:
         sampled_mesh.vertices = vertices + sampled_mesh.vertex_normals * pred_normal
     MeshNormalizer(sampled_mesh)()
+
 
 
 if __name__ == '__main__':
@@ -585,7 +610,9 @@ if __name__ == '__main__':
     parser.add_argument('--color_only', default=False, action='store_true')
     parser.add_argument('--with_prior_color', default=False, action='store_true')
     parser.add_argument('--label', nargs='+', type=int, default=5)
-
+    parser.add_argument('--render_all_grad_one', default=False, action='store_true')
+    parser.add_argument('--focus_one_thing', default=False, action='store_true')
+    parser.add_argument('--rand_focal', default=False, action='store_true')
     args = parser.parse_args()
 
     run_branched(args)

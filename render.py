@@ -11,11 +11,13 @@ class Renderer():
 
     def __init__(self, mesh='sample.obj',
                  lights=torch.tensor([1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
-                 camera=kal.render.camera.generate_perspective_projection(np.pi / 3).to(device),
+                 camera=None,
                  dim=(224, 224)):
 
         if camera is None:
-            camera = kal.render.camera.generate_perspective_projection(np.pi / 3).to(device)
+            # changing fovyangle is equivalent to changing focal length
+            fovyangle = np.pi / 3
+            camera = kal.render.camera.generate_perspective_projection(fovyangle).to(device)
 
         self.lights = lights.unsqueeze(0).to(device)
         self.camera_projection = camera
@@ -411,7 +413,7 @@ class Renderer():
             return images, masks
 
     def render_center_out_views(self, mesh, num_views=8, std=8, center_elev=0, center_azim=0, show=False, lighting=True,
-                           background=None, mask=False, return_views=False, rand_background=False):
+                           background=None, mask=False, return_views=False, rand_background=False, rand_focal=False):
         """
             camera view from inside out
         """
@@ -437,9 +439,14 @@ class Renderer():
 
         for i in range(num_views):
             # Fixme: get camera from inside(center/sparase area) out
-            camera_transform = get_camera_from_inside_out(elev[i], azim[i], r=1).to(device)
+            camera_transform = get_camera_from_inside_out(elev[i], azim[i], r=4.0).to(device)
+            if rand_focal:
+                fovyangle = torch.rand(1) * np.pi/3 + torch.tensor(np.pi/6)
+                camera_projection = kal.render.camera.generate_perspective_projection(fovyangle).to(device)
+            else:
+                camera_projection = self.camera_projection
             face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(
-                mesh.vertices.to(device), mesh.faces.to(device), self.camera_projection,
+                mesh.vertices.to(device), mesh.faces.to(device), camera_projection,
                 camera_transform=camera_transform)
             image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(
                 self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1],
