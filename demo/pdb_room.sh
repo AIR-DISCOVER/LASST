@@ -1,9 +1,9 @@
 CUDA_VISIBLE_DEVICES=0 python sem_seg_main.py \
         --run branch \
         --obj_path data/scene0002_00/scene0002_00_vh_clean_2.ply \
-        --output_dir results/demo/room/scene0002_00/camera_pos/r_4_alpha_0.2 \
-        --prompt "a room with some glass doors, a room with marble floors, a room with some wooden chairs, a room with a leather sofa" \
-        --label 8 2 5 6 \
+        --output_dir results/demo/room/scene0002_00/focal_length/rand_focal_beach_house \
+        --prompt "a beach house by the sea" \
+        --label 2 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \
@@ -31,4 +31,5 @@ CUDA_VISIBLE_DEVICES=0 python sem_seg_main.py \
         --normratio 0.05 \
         --color_only \
         --render_all_grad_one \
-        --focus_one_thing
+        --focus_one_thing \
+        --rand_focal

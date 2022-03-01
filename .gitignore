@@ -145,3 +145,5 @@ dmypy.json
 .vscode/
 *.obj
 *.ply
+
+all_obj

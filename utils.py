@@ -56,7 +56,7 @@ def get_camera_from_inside_out(elev, azim, r=3.0):
     pos = torch.tensor([x, y, z]).unsqueeze(0)
     look_at = -pos
     # change camera height
-    camera_alpha = 0.2
+    camera_alpha = 1
     pos = pos * camera_alpha
     if x.numpy() == 0.0 and y.numpy() == 0.0:
         direction = torch.tensor([0.0, 1.0, 0.0]).unsqueeze(0)

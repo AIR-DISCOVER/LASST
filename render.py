@@ -439,7 +439,7 @@ class Renderer():
 
         for i in range(num_views):
             # Fixme: get camera from inside(center/sparase area) out
-            camera_transform = get_camera_from_inside_out(elev[i], azim[i], r=4.0).to(device)
+            camera_transform = get_camera_from_inside_out(elev[i], azim[i], r=1.0).to(device)
             if rand_focal:
                 fovyangle = torch.rand(1) * np.pi/3 + torch.tensor(np.pi/6)
                 camera_projection = kal.render.camera.generate_perspective_projection(fovyangle).to(device)
