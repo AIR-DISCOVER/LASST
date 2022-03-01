@@ -468,7 +468,7 @@ class Renderer():
                 mask = mask.squeeze(-1)
                 assert torch.all(image[torch.where(mask == 0)] == torch.zeros(3).to(device))
                 if rand_background:
-                    rand = (torch.rand_like(background_mask, device=background.device) - 0.5) / 3
+                    rand = (torch.rand_like(background_mask, device=background.device) - 0.5) / 5
                     background_mask[torch.where(mask == 0)] = background + rand[torch.where(mask == 0)]
                 else:
                     background_mask[torch.where(mask == 0)] = background

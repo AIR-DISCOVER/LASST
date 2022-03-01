@@ -1,16 +1,17 @@
+IDX=$RANDOM
+echo $IDX
 python sem_seg_main.py \
         --run branch \
-        --obj_path scene0000_00 \
-        --output_dir results/test/all_in_one \
-        --prompt "blue sky,clouds at sunset" \
-        --label 1 2 \
+        --obj_path scene0158_02 \
+        --output_dir results/teaser/scene0158_02 \
+        --prompt "ceramic refridgerator,marble wall,diamond texture floor,wooden cabinet,diamond texture door,steel counter," \
+        --label 24 1 2 3 8 12 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \
         --n_augs 1 \
         --normmincrop 0.1 \
         --normmaxcrop 0.1 \
-        --geoloss \
         --colordepth 2 \
         --normdepth 2   \
         --frontview \
@@ -22,7 +23,7 @@ python sem_seg_main.py \
         --maxcrop 1.0 \
         --save_render \
         --seed 11 \
-        --n_iter 100 \
+        --n_iter 1500 \
         --learning_rate 0.0005 \
         --normal_learning_rate 0.0005 \
         --background 0.5 0.5 0.5 \
@@ -31,5 +32,5 @@ python sem_seg_main.py \
         --with_prior_color \
         --normratio 0.05 \
         --color_only \
-        --render_all_grad_one \
         --focus_one_thing
+echo $IDX
