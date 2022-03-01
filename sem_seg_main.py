@@ -6,7 +6,7 @@ import torch
 from neural_style_field import NeuralStyleField
 from utils import device
 from render import Renderer
-from mesh import Mesh
+from mesh_scannet import Mesh
 from utils import clip_model
 from Normalization import MeshNormalizer
 from utils import preprocess, add_vertices, sample_bary
@@ -19,8 +19,16 @@ from PIL import Image
 import argparse
 from pathlib import Path
 from torchvision import transforms
+from IPython import embed
+from convert import HSVLoss as HSV
+
+# 1. camera position
+# 2. H of HSV range
+# 3. random camera pose until fore ground larger that 80%
+# 4. avoid faces
 
 def run_branched(args):
+    dir = args.output_dir
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
     # Constrain all sources of randomness
@@ -29,39 +37,29 @@ def run_branched(args):
     torch.cuda.manual_seed_all(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = False
 
     objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
-    # Check that isn't already done
-    if (not args.overwrite) and os.path.exists(os.path.join(args.output_dir, "loss.png")) and \
-            os.path.exists(os.path.join(args.output_dir, f"{objbase}_final.obj")):
-        print(f"Already done with {args.output_dir}")
-        exit()
-    elif args.overwrite and os.path.exists(os.path.join(args.output_dir, "loss.png")) and \
-            os.path.exists(os.path.join(args.output_dir, f"{objbase}_final.obj")):
-        import shutil
-        for filename in os.listdir(args.output_dir):
-            file_path = os.path.join(args.output_dir, filename)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                print('Failed to delete %s. Reason: %s' % (file_path, e))
 
     render = Renderer()
     full_mesh = Mesh(args.obj_path)
+    init_full_mesh = copy.deepcopy(full_mesh)
 
     #focus_one_thing = True
     full_pred_rgb = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
     full_pred_normal = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
     full_final_mask = torch.zeros([full_mesh.vertices.shape[0]], dtype=torch.float32)
     for label_order, label in enumerate(args.label):
+        # TODO add option
+        init_mesh, _, _ = init_full_mesh.mask_mesh(label)
+        init_mesh_colors = torch.clone(kaolin.ops.mesh.index_vertices_by_faces(
+            init_mesh.colors.unsqueeze(0),
+            init_mesh.faces).squeeze())
+        # option end
         if args.focus_one_thing:
             if not (full_mesh.labels==label).any():
-                print("label {label} is not in this mesh")
+                print(f"label {label} is not in this mesh")
                 continue
             ver_mask, face_mask = full_mesh.get_mask(label)
             if args.render_all_grad_one:
@@ -79,6 +77,7 @@ def run_branched(args):
 
         MeshNormalizer(mesh)()
 
+        # with_prior_color: start with original color
         if args.with_prior_color:
             prior_color = kaolin.ops.mesh.index_vertices_by_faces(
                         mesh.colors.unsqueeze(0),
@@ -94,7 +93,7 @@ def run_branched(args):
         losses = []
 
         n_augs = args.n_augs
-        dir = args.output_dir
+        # dir = args.output_dir
         clip_normalizer = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
         # CLIP Transform
         clip_transform = transforms.Compose([
@@ -123,7 +122,8 @@ def run_branched(args):
         cropupdate = 0
         if args.normmincrop < args.normmaxcrop and args.cropsteps > 0:
             cropiter = round(args.n_iter / (args.cropsteps + 1))
-            cropupdate = (args.maxcrop - args.mincrop) / cropiter
+            # cropupdate = (args.maxcrop - args.mincrop) / cropiter
+            cropupdate = -0.9
 
             if not args.cropforward:
                 cropupdate *= -1
@@ -196,6 +196,23 @@ def run_branched(args):
             sampled_mesh = mesh
 
             update_mesh(args, mlp, network_input, prior_color, sampled_mesh, vertices, ver_mask=ver_mask)
+            # TODO add option start
+            loss = 0.0
+            h1, s1, v1 = HSV().get_hsv(sampled_mesh.face_attributes.permute(0,3,1,2))
+            h2, s2, v2 = HSV().get_hsv(init_mesh_colors.unsqueeze(0).permute(0,3,1,2))
+            loss += 0.5 * (h1 - h2).abs().mean()
+            loss += 0.5 * (s1 - s2).abs().mean()
+            loss += 0.5 * (v1 - v2).abs().mean()
+            loss += (h1.mean() - h2.mean()).abs()
+            loss += (s1.mean() - s2.mean()).abs()
+            loss += (v1.mean() - v2.mean()).abs()
+            loss += (h1.std() - h2.std()).abs()
+            loss += (s1.std() - s2.std()).abs()
+            loss += (v1.std() - v2.std()).abs()
+            loss = loss.reshape(1) / 6
+        
+            # add option end
+
             rendered_images, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views, lighting=args.lighting,
                                                                     show=args.show,
                                                                     center_azim=args.frontview_center[0],
@@ -210,7 +227,7 @@ def run_branched(args):
                 clip_image = clip_transform(rendered_images)
                 encoded_renders = clip_model.encode_image(clip_image)
                 if not args.no_prompt:
-                    loss = torch.mean(torch.cosine_similarity(encoded_renders, encoded_text))
+                    loss += torch.mean(torch.cosine_similarity(encoded_renders, encoded_text))
 
             # Check augmentation steps
             if args.cropsteps != 0 and cropupdate != 0 and i != 0 and i % args.cropsteps == 0:
@@ -223,7 +240,7 @@ def run_branched(args):
                 ])
 
             if n_augs > 0:
-                loss = 0.0
+                # loss = 0.0
                 for _ in range(n_augs):
                     augmented_image = augment_transform(rendered_images)
                     encoded_renders = clip_model.encode_image(augmented_image)
@@ -236,6 +253,7 @@ def run_branched(args):
                                 else:
                                     loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
                                                                     encoded_text)
+                                    # embed()
                             else:
                                 loss -= torch.mean(torch.cosine_similarity(encoded_renders, encoded_text))
                     if args.image:
@@ -250,7 +268,7 @@ def run_branched(args):
             if args.splitnormloss:
                 for param in mlp.mlp_normal.parameters():
                     param.requires_grad = False
-            loss.backward(retain_graph=True)
+            # loss.backward(retain_graph=True)
 
             # optim.step()
 
@@ -260,7 +278,7 @@ def run_branched(args):
             # Normal augment transform
             # loss = 0.0
             if args.n_normaugs > 0:
-                normloss = 0.0
+                # loss = 0.0
                 for _ in range(args.n_normaugs):
                     augmented_image = normaugment_transform(rendered_images)
                     encoded_renders = clip_model.encode_image(augmented_image)
@@ -268,15 +286,15 @@ def run_branched(args):
                         if args.prompt:
                             if args.clipavg == "view":
                                 if norm_encoded.shape[0] > 1:
-                                    normloss -= normweight * torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
+                                    loss -= normweight * torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
                                                                                     torch.mean(norm_encoded, dim=0),
                                                                                     dim=0)
                                 else:
-                                    normloss -= normweight * torch.cosine_similarity(
+                                    loss -= normweight * torch.cosine_similarity(
                                         torch.mean(encoded_renders, dim=0, keepdim=True),
                                         norm_encoded)
                             else:
-                                normloss -= normweight * torch.mean(
+                                loss -= normweight * torch.mean(
                                     torch.cosine_similarity(encoded_renders, norm_encoded))
                     if args.image:
                         if encoded_image.shape[0] > 1:
@@ -294,7 +312,7 @@ def run_branched(args):
                     for param in mlp.mlp_rgb.parameters():
                         param.requires_grad = False
                 if not args.no_prompt:
-                    normloss.backward(retain_graph=True)
+                    loss.backward(retain_graph=True)
 
             # Also run separate loss on the uncolored displacements
             if args.geoloss:
@@ -349,7 +367,7 @@ def run_branched(args):
                 if i % args.decayfreq == 0:
                     normweight *= args.cropdecay
 
-            if i % 100 == 0:
+            if i % 10 == 0:
                 report_process(args, dir, i, loss, loss_check, losses, rendered_images, label)
 
         if args.focus_one_thing:
@@ -361,10 +379,12 @@ def run_branched(args):
                 pred_rgb = pred_rgb * cpu_ver_mask.unsqueeze(dim=-1)
             full_pred_normal = full_pred_normal + pred_normal
             full_pred_rgb = full_pred_rgb + pred_rgb
-            full_final_mask = full_final_mask + cpu_ver_mask
-            del pred_normal
-            del pred_rgb
-            del cpu_ver_mask
+            
+            if args.render_all_grad_one:
+                full_final_mask = full_final_mask + cpu_ver_mask
+                del pred_normal
+                del pred_rgb
+                del cpu_ver_mask
 
         else:
             export_final_results(args, dir, losses, mesh, mlp, network_input, vertices)
@@ -416,7 +436,10 @@ def export_final_results(args, dir, losses, mesh, mlp, network_input, vertices):
         base_color = torch.full(size=(mesh.vertices.shape[0], 3), fill_value=0.5)
         final_color = torch.clamp(pred_rgb + base_color, 0, 1)
 
-        mesh.vertices = vertices.detach().cpu() + mesh.vertex_normals.detach().cpu() * pred_normal
+        if args.color_only:
+            mesh.vertices = vertices.detach().cpu() + mesh.vertex_normals.detach().cpu() * pred_normal
+        else:
+            mesh.vertices = vertices.detach().cpu()
 
         objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
         mesh.export(os.path.join(dir, f"{objbase}_final.obj"), color=final_color)
@@ -613,6 +636,21 @@ if __name__ == '__main__':
     parser.add_argument('--render_all_grad_one', default=False, action='store_true')
     parser.add_argument('--focus_one_thing', default=False, action='store_true')
     parser.add_argument('--rand_focal', default=False, action='store_true')
+
+    # TODO add help for key options
     args = parser.parse_args()
 
     run_branched(args)
+
+
+# For comparison: 10*scenes
+# 1. w/ w/o HSV regularization
+# 2. full house / part rendering
+# 3. random / fixed focal lengths
+# 4. w/ or w/o initial colors
+# +5. w/ or w/o semantic mask
+
+# Future 
+# 1. full house regularization
+# 2. camera pose
+# 3. 

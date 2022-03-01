@@ -146,4 +146,5 @@ dmypy.json
 *.obj
 *.ply
 
-all_obj
+
+/results
