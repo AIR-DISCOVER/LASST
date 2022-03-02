@@ -1,7 +1,7 @@
-CUDA_VISIBLE_DEVICES=0 python sem_seg_main.py \
+CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
         --run branch \
         --obj_path scene0002_00 \
-        --output_dir results/demo/room/hsv/scene0002_00/with_hsv \
+        --output_dir results/demo/room/hsv/scene0002_00/with_initial_color \
         --prompt "icy wall, marble floor, wooden chairs, leather sofa" \
         --label 1 2 5 6 \
         --sigma 5.0  \
@@ -32,4 +32,4 @@ CUDA_VISIBLE_DEVICES=0 python sem_seg_main.py \
         --color_only \
         --render_all_grad_one \
         --focus_one_thing \
-        --with_hsv
+        --with_prior_color

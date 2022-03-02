@@ -51,12 +51,15 @@ def run_branched(args):
     full_pred_normal = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
     full_final_mask = torch.zeros([full_mesh.vertices.shape[0]], dtype=torch.float32)
     for label_order, label in enumerate(args.label):
-        # TODO add option
-        init_mesh, _, _ = init_full_mesh.mask_mesh(label)
+
+        if args.focus_one_thing and not args.render_all_grad_one:
+            init_mesh, _, _ = init_full_mesh.mask_mesh(label)
+        else:
+            init_mesh = copy.deepcopy(init_full_mesh)
         init_mesh_colors = torch.clone(kaolin.ops.mesh.index_vertices_by_faces(
             init_mesh.colors.unsqueeze(0),
             init_mesh.faces).squeeze())
-        # option end
+
         if args.focus_one_thing:
             if not (full_mesh.labels==label).any():
                 print(f"label {label} is not in this mesh")
@@ -196,22 +199,22 @@ def run_branched(args):
             sampled_mesh = mesh
 
             update_mesh(args, mlp, network_input, prior_color, sampled_mesh, vertices, ver_mask=ver_mask)
-            # TODO add option start
             loss = 0.0
-            h1, s1, v1 = HSV().get_hsv(sampled_mesh.face_attributes.permute(0,3,1,2))
-            h2, s2, v2 = HSV().get_hsv(init_mesh_colors.unsqueeze(0).permute(0,3,1,2))
-            loss += 0.5 * (h1 - h2).abs().mean()
-            loss += 0.5 * (s1 - s2).abs().mean()
-            loss += 0.5 * (v1 - v2).abs().mean()
-            loss += (h1.mean() - h2.mean()).abs()
-            loss += (s1.mean() - s2.mean()).abs()
-            loss += (v1.mean() - v2.mean()).abs()
-            loss += (h1.std() - h2.std()).abs()
-            loss += (s1.std() - s2.std()).abs()
-            loss += (v1.std() - v2.std()).abs()
-            loss = loss.reshape(1) / 6
-        
-            # add option end
+            if args.with_hsv_loss:
+                hsv_loss = 0.0
+                h1, s1, v1 = HSV().get_hsv(sampled_mesh.face_attributes.permute(0,3,1,2))
+                h2, s2, v2 = HSV().get_hsv(init_mesh_colors.unsqueeze(0).permute(0,3,1,2))
+                hsv_loss += 0.9 * (h1 - h2).abs().mean()
+                hsv_loss += 0.9 * (s1 - s2).abs().mean()
+                hsv_loss += 0.9 * (v1 - v2).abs().mean()
+                hsv_loss += (h1.mean() - h2.mean()).abs()
+                hsv_loss += (s1.mean() - s2.mean()).abs()
+                hsv_loss += (v1.mean() - v2.mean()).abs()
+                hsv_loss += (h1.std() - h2.std()).abs()
+                hsv_loss += (s1.std() - s2.std()).abs()
+                hsv_loss += (v1.std() - v2.std()).abs()
+                loss += hsv_loss.reshape(1) / 6
+
 
             rendered_images, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views, lighting=args.lighting,
                                                                     show=args.show,
@@ -466,7 +469,7 @@ def export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, 
         #     base_color = torch.full(size=(mesh.vertices.shape[0], 3), fill_value=0.5)
         # final_color = torch.clamp(pred_rgb + base_color, 0, 1)
 
-        # TODO: export train result with only one label, because in this version mesh is full_mesh
+        #  export train result with only one label, because in this version mesh is full_mesh
         #mesh.vertices = vertices.detach().cpu() + mesh.vertex_normals.detach().cpu() * pred_normal
 
         #objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
@@ -636,6 +639,7 @@ if __name__ == '__main__':
     parser.add_argument('--render_all_grad_one', default=False, action='store_true')
     parser.add_argument('--focus_one_thing', default=False, action='store_true')
     parser.add_argument('--rand_focal', default=False, action='store_true')
+    parser.add_argument('--with_hsv_loss', default=False, action='store_true')
 
     # TODO add help for key options
     args = parser.parse_args()
