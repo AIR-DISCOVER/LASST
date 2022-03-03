@@ -3,6 +3,7 @@ from tqdm import tqdm
 import kaolin.ops.mesh
 import kaolin as kal
 import torch
+from args import parse_args
 from neural_style_field import NeuralStyleField
 from utils import device
 from render import Renderer
@@ -198,18 +199,25 @@ def run_branched(args):
             update_mesh(args, mlp, network_input, prior_color, sampled_mesh, vertices, ver_mask=ver_mask)
             # TODO add option start
             loss = 0.0
-            h1, s1, v1 = HSV().get_hsv(sampled_mesh.face_attributes.permute(0,3,1,2))
-            h2, s2, v2 = HSV().get_hsv(init_mesh_colors.unsqueeze(0).permute(0,3,1,2))
-            loss += 0.5 * (h1 - h2).abs().mean()
-            loss += 0.5 * (s1 - s2).abs().mean()
-            loss += 0.5 * (v1 - v2).abs().mean()
-            loss += (h1.mean() - h2.mean()).abs()
-            loss += (s1.mean() - s2.mean()).abs()
-            loss += (v1.mean() - v2.mean()).abs()
-            loss += (h1.std() - h2.std()).abs()
-            loss += (s1.std() - s2.std()).abs()
-            loss += (v1.std() - v2.std()).abs()
-            loss = loss.reshape(1) / 6
+
+            if args.hsv_diff_constraints or args.hsv_stat_constraints:
+                h1, s1, v1 = HSV().get_hsv(sampled_mesh.face_attributes.permute(0,3,1,2))
+                h2, s2, v2 = HSV().get_hsv(init_mesh_colors.unsqueeze(0).permute(0,3,1,2))
+                if args.hsv_diff_constraints:
+                    loss_diff = 0
+                    loss_diff += args.hsv_diff_coefficient[0] * (h1 - h2).abs().mean()
+                    loss_diff += args.hsv_diff_coefficient[1] * 0.5 * (s1 - s2).abs().mean()
+                    loss_diff += args.hsv_diff_coefficient[2] * 0.5 * (v1 - v2).abs().mean()
+                    loss += loss_diff.reshape(1) / 3
+                if args.hsv_stat_constraints:
+                    loss_stat = 0
+                    loss_stat += args.hsv_mean_diff_coefficient[0] * (h1.mean() - h2.mean()).abs()
+                    loss_stat += args.hsv_mean_diff_coefficient[1] * (s1.mean() - s2.mean()).abs()
+                    loss_stat += args.hsv_mean_diff_coefficient[2] * (v1.mean() - v2.mean()).abs()
+                    loss_stat += args.hsv_std_diff_coefficient[0] * (h1.std() - h2.std()).abs()
+                    loss_stat += args.hsv_std_diff_coefficient[1] * (s1.std() - s2.std()).abs()
+                    loss_stat += args.hsv_std_diff_coefficient[2] * (v1.std() - v2.std()).abs()
+                    loss += loss_stat.reshape(1) / 6
         
             # add option end
 
@@ -563,82 +571,9 @@ def update_mesh(args, mlp, network_input, prior_color, sampled_mesh, vertices, v
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--obj_path', type=str, default='meshes/mesh1.obj')
-    parser.add_argument('--prompt', nargs="+", default='a pig with pants')
-    parser.add_argument('--normprompt', nargs="+", default=None)
-    parser.add_argument('--promptlist', nargs="+", default=None)
-    parser.add_argument('--normpromptlist', nargs="+", default=None)
-    parser.add_argument('--image', type=str, default=None)
-    parser.add_argument('--output_dir', type=str, default='round2/alpha5')
-    parser.add_argument('--traintype', type=str, default="shared")
-    parser.add_argument('--sigma', type=float, default=10.0)
-    parser.add_argument('--normsigma', type=float, default=10.0)
-    parser.add_argument('--depth', type=int, default=4)
-    parser.add_argument('--width', type=int, default=256)
-    parser.add_argument('--colordepth', type=int, default=2)
-    parser.add_argument('--normdepth', type=int, default=2)
-    parser.add_argument('--normwidth', type=int, default=256)
-    parser.add_argument('--learning_rate', type=float, default=0.0005)
-    parser.add_argument('--normal_learning_rate', type=float, default=0.0005)
-    parser.add_argument('--decay', type=float, default=0)
-    parser.add_argument('--lr_decay', type=float, default=1)
-    parser.add_argument('--lr_plateau', action='store_true')
-    parser.add_argument('--no_pe', dest='pe', default=True, action='store_false')
-    parser.add_argument('--decay_step', type=int, default=100)
-    parser.add_argument('--n_views', type=int, default=5)
-    parser.add_argument('--n_augs', type=int, default=0)
-    parser.add_argument('--n_normaugs', type=int, default=0)
-    parser.add_argument('--n_iter', type=int, default=6000)
-    parser.add_argument('--encoding', type=str, default='gaussian')
-    parser.add_argument('--normencoding', type=str, default='xyz')
-    parser.add_argument('--layernorm', action="store_true")
-    parser.add_argument('--run', type=str, default=None)
-    parser.add_argument('--gen', action='store_true')
-    parser.add_argument('--clamp', type=str, default="tanh")
-    parser.add_argument('--normclamp', type=str, default="tanh")
-    parser.add_argument('--normratio', type=float, default=0.1)
-    parser.add_argument('--frontview', action='store_true')
-    parser.add_argument('--no_prompt', default=False, action='store_true')
-    parser.add_argument('--exclude', type=int, default=0)
-
-    parser.add_argument('--frontview_std', type=float, default=8)
-    parser.add_argument('--frontview_center', nargs=2, type=float, default=[0., 0.])
-    parser.add_argument('--clipavg', type=str, default=None)
-    parser.add_argument('--geoloss', action="store_true")
-    parser.add_argument('--samplebary', action="store_true")
-    parser.add_argument('--promptviews', nargs="+", default=None)
-    parser.add_argument('--mincrop', type=float, default=1)
-    parser.add_argument('--maxcrop', type=float, default=1)
-    parser.add_argument('--normmincrop', type=float, default=0.1)
-    parser.add_argument('--normmaxcrop', type=float, default=0.1)
-    parser.add_argument('--splitnormloss', action="store_true")
-    parser.add_argument('--splitcolorloss', action="store_true")
-    parser.add_argument("--nonorm", action="store_true")
-    parser.add_argument('--cropsteps', type=int, default=0)
-    parser.add_argument('--cropforward', action='store_true')
-    parser.add_argument('--cropdecay', type=float, default=1.0)
-    parser.add_argument('--decayfreq', type=int, default=None)
-    parser.add_argument('--overwrite', action='store_true')
-    parser.add_argument('--show', action='store_true')
-    parser.add_argument('--background', nargs=3, type=float, default=None)
-    parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--save_render', action="store_true")
-    parser.add_argument('--input_normals', default=False, action='store_true')
-    parser.add_argument('--symmetry', default=False, action='store_true')
-    parser.add_argument('--only_z', default=False, action='store_true')
-    parser.add_argument('--standardize', default=False, action='store_true')
-    parser.add_argument('--rand_background', default=False, action='store_true')
-    parser.add_argument('--lighting', default=False, action='store_true')
-    parser.add_argument('--color_only', default=False, action='store_true')
-    parser.add_argument('--with_prior_color', default=False, action='store_true')
-    parser.add_argument('--label', nargs='+', type=int, default=5)
-    parser.add_argument('--render_all_grad_one', default=False, action='store_true')
-    parser.add_argument('--focus_one_thing', default=False, action='store_true')
-    parser.add_argument('--rand_focal', default=False, action='store_true')
-
     # TODO add help for key options
-    args = parser.parse_args()
+    # args = parser.parse_args()
+    args = parse_args()
 
     run_branched(args)
 
@@ -646,11 +581,11 @@ if __name__ == '__main__':
 # For comparison: 10*scenes
 # 1. w/ w/o HSV regularization
 # 2. full house / part rendering
-# 3. random / fixed focal lengths
+# 3. random / fixed focal lengths 
 # 4. w/ or w/o initial colors
 # +5. w/ or w/o semantic mask
 
 # Future 
 # 1. full house regularization
 # 2. camera pose
-# 3. 
+# 3. feature interpolation 
