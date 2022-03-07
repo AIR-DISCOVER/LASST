@@ -1,7 +1,7 @@
-CUDA_VISIBLE_DEVICES=1 python sem_seg_main.py \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python sem_seg_main.py \
         --run branch \
         --obj_path scene0355_00 \
-        --output_dir results/demo/comparison/scene0355_00/with_random_focal \
+        --output_dir results/demo/comparison/scene0355_00/with_hsv_and_init_color \
         --prompt "Bamboo wall, brick floor, plastic chair, stone table" \
         --label 1 2 5 7 \
         --sigma 5.0  \
@@ -28,9 +28,9 @@ CUDA_VISIBLE_DEVICES=1 python sem_seg_main.py \
         --background 0.5 0.5 0.5 \
         --rand_background \
         --frontview_center 1.8707 0.6303 \
-        --lighting \
         --normratio 0.05 \
         --color_only \
         --render_all_grad_one \
         --focus_one_thing \
-        --rand_focal
+        --with_prior_color \
+        --with_hsv_loss

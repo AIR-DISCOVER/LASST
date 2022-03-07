@@ -64,15 +64,16 @@ COLORS = [
     'African violet',
 ]
 TEXTURE = [
+    'brick',
     'wooden',
     'marble',
-    'plastic',
+    #'plastic',
     'steel',
     'leather',
     'diamond texture',
-    'fabric',
+    #'fabric',
     'icy',
-    'ceramic'
+    #'ceramic'
 ]
 
 CLASS_LABELS = (

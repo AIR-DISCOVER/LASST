@@ -1,9 +1,9 @@
-CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
+CUDA_VISIBLE_DEVICES=2 python sem_seg_main.py \
         --run branch \
-        --obj_path scene0002_00 \
-        --output_dir results/demo/room/hsv/scene0002_00/with_initial_color \
-        --prompt "icy wall, marble floor, wooden chairs, leather sofa" \
-        --label 1 2 5 6 \
+        --obj_path scene0355_00 \
+        --output_dir results/demo/comparison/scene0355_00/with_initial_color \
+        --prompt "Bamboo wall, brick floor, plastic chair, stone table" \
+        --label 1 2 5 7 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \
@@ -12,7 +12,7 @@ CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
         --normmaxcrop 0.1 \
         --geoloss \
         --colordepth 2 \
-        --normdepth 2   \
+        --normdepth 2 \
         --frontview \
         --frontview_std 4 \
         --clipavg view \
@@ -25,9 +25,9 @@ CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
         --n_iter 1000 \
         --learning_rate 0.0005 \
         --normal_learning_rate 0.0005 \
-        --background 1 1 1 \
+        --background 0.5 0.5 0.5 \
+        --rand_background \
         --frontview_center 1.8707 0.6303 \
-        --lighting \
         --normratio 0.05 \
         --color_only \
         --render_all_grad_one \
