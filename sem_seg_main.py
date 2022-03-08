@@ -51,43 +51,34 @@ def run_branched(args):
     full_pred_rgb = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
     full_pred_normal = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
     full_final_mask = torch.zeros([full_mesh.vertices.shape[0]], dtype=torch.float32)
+
     for label_order, label in enumerate(args.label):
 
-        if args.focus_one_thing and not args.render_all_grad_one:
-            init_mesh, _, _ = init_full_mesh.mask_mesh(label)
-        else:
-            init_mesh = copy.deepcopy(init_full_mesh)
-        init_mesh_colors = torch.clone(kaolin.ops.mesh.index_vertices_by_faces(
-            init_mesh.colors.unsqueeze(0),
-            init_mesh.faces).squeeze())
+        ver_mask, face_mask, old_indice_to_new, new_indice_to_old = init_full_mesh.get_mask(label)
+        init_mesh_colors = init_full_mesh.get_mask_color(ver_mask, face_mask, old_indice_to_new, new_indice_to_old)
 
         if args.focus_one_thing:
             if not (full_mesh.labels==label).any():
                 print(f"label {label} is not in this mesh")
                 continue
-            ver_mask, face_mask = full_mesh.get_mask(label)
             if args.render_all_grad_one:
                 mesh = copy.deepcopy(full_mesh)
-                old_indice_to_new = None
-                new_indice_to_old = None
             else:
-                mesh, old_indice_to_new, new_indice_to_old = full_mesh.mask_mesh(label)
+                mesh = full_mesh.mask_mesh(ver_mask, face_mask, old_indice_to_new, new_indice_to_old)
         else:
             mesh = copy.deepcopy(full_mesh)
-            old_indice_to_new = None
-            new_indice_to_old = None
-            ver_mask = None
-            face_mask = None
 
         MeshNormalizer(mesh)()
 
         # with_prior_color: start with original color
         if args.with_prior_color:
-            prior_color = kaolin.ops.mesh.index_vertices_by_faces(
+            prior_face_attributes = kaolin.ops.mesh.index_vertices_by_faces(
                         mesh.colors.unsqueeze(0),
                         mesh.faces).squeeze()
+            prior_ver_color = init_full_mesh.get_mask_color(ver_mask, face_mask, old_indice_to_new, new_indice_to_old)
         else:
-            prior_color = torch.full(size=(mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
+            prior_face_attributes = torch.full(size=(mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
+            prior_ver_color = torch.full(size=init_mesh_colors.shape, fill_value=0.5, device=device)
 
         background = None
         if args.background is not None:
@@ -199,23 +190,23 @@ def run_branched(args):
 
             sampled_mesh = mesh
 
-            update_mesh(args, mlp, network_input, prior_color, sampled_mesh, vertices, ver_mask=ver_mask)
+            pred_rgb = update_mesh(args, mlp, network_input, prior_face_attributes, sampled_mesh, vertices, ver_mask=ver_mask)
             loss = 0.0
             if args.with_hsv_loss:
                 hsv_loss = 0.0
-                h1, s1, v1 = HSV().get_hsv(sampled_mesh.face_attributes.permute(0,3,1,2))
-                h2, s2, v2 = HSV().get_hsv(init_mesh_colors.unsqueeze(0).permute(0,3,1,2))
-                hsv_loss += 0.9 * (h1 - h2).abs().mean()
-                hsv_loss += 0.9 * (s1 - s2).abs().mean()
-                hsv_loss += 0.9 * (v1 - v2).abs().mean()
-                hsv_loss += (h1.mean() - h2.mean()).abs()
-                hsv_loss += (s1.mean() - s2.mean()).abs()
-                hsv_loss += (v1.mean() - v2.mean()).abs()
-                hsv_loss += (h1.std() - h2.std()).abs()
+                masked_mesh_color = prior_ver_color + pred_rgb[ver_mask]
+                h1, s1, v1 = HSV().get_hsv(masked_mesh_color.unsqueeze(-1).unsqueeze(-1))
+                h2, s2, v2 = HSV().get_hsv(init_mesh_colors.unsqueeze(-1).unsqueeze(-1))
+                hsv_loss += 0.1 * torch.min((h1 - h2).abs(), 1 - ((h1 - h2).abs())).mean()
+                hsv_loss += 0.1 * (s1 - s2).abs().mean()
+                hsv_loss += 0.1 * (v1 - v2).abs().mean()
+                hsv_loss += 0.5 * torch.min((h1.mean() - h2.mean()).abs(), 1 - ((h1.mean() - h2.mean()).abs()))
+                hsv_loss += 0.5 * (s1.mean() - s2.mean()).abs()
+                hsv_loss += 0.5 * (v1.mean() - v2.mean()).abs()
+                hsv_loss += torch.min((h1.std() - h2.std()).abs(), 1 - ((h1.std() - h2.std()).abs()))
                 hsv_loss += (s1.std() - s2.std()).abs()
                 hsv_loss += (v1.std() - v2.std()).abs()
                 loss += hsv_loss.reshape(1) / 6
-
 
             rendered_images, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views, lighting=args.lighting,
                                                                     show=args.show,
@@ -371,14 +362,14 @@ def run_branched(args):
                 if i % args.decayfreq == 0:
                     normweight *= args.cropdecay
 
-            if i % 10 == 0:
+            if i % 100 == 0:
                 report_process(args, dir, i, loss, loss_check, losses, rendered_images, label)
 
         if args.focus_one_thing:
             pred_rgb, pred_normal = export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, vertices,
                                 old_indice_to_new=old_indice_to_new, new_indice_to_old=new_indice_to_old, label = label)
             if args.render_all_grad_one:
-                cpu_ver_mask = ver_mask.detach().cpu()
+                cpu_ver_mask = ver_mask.to(torch.long).detach().cpu()
                 pred_normal = pred_rgb * cpu_ver_mask.unsqueeze(dim=-1)
                 pred_rgb = pred_rgb * cpu_ver_mask.unsqueeze(dim=-1)
             full_pred_normal = full_pred_normal + pred_normal
@@ -547,15 +538,15 @@ def save_rendered_results(args, dir, final_color, mesh):
     img.save(os.path.join(dir, f"final_cluster.png"))
 
 
-def update_mesh(args, mlp, network_input, prior_color, sampled_mesh, vertices, ver_mask=None):
+def update_mesh(args, mlp, network_input, prior_face_attributes, sampled_mesh, vertices, ver_mask=None):
     pred_rgb, pred_normal = mlp(network_input)
 
     if args.render_all_grad_one:
-        pred_rgb = pred_rgb*ver_mask.unsqueeze(dim=-1)
-        pred_normal = pred_normal*ver_mask.unsqueeze(dim=-1)
+        pred_rgb = pred_rgb*(ver_mask.to(torch.long)).unsqueeze(dim=-1)
+        pred_normal = pred_normal*(ver_mask.to(torch.long)).unsqueeze(dim=-1)
 
     # sampled_mesh refers to the focused thing
-    sampled_mesh.face_attributes = prior_color + kaolin.ops.mesh.index_vertices_by_faces(
+    sampled_mesh.face_attributes = prior_face_attributes + kaolin.ops.mesh.index_vertices_by_faces(
         pred_rgb.unsqueeze(0),
         sampled_mesh.faces)
     if args.color_only:
@@ -563,6 +554,7 @@ def update_mesh(args, mlp, network_input, prior_color, sampled_mesh, vertices, v
     else:
         sampled_mesh.vertices = vertices + sampled_mesh.vertex_normals * pred_normal
     MeshNormalizer(sampled_mesh)()
+    return pred_rgb
 
 
 

@@ -1,8 +1,8 @@
-# with_initial_color
+# with_hsv_and_initial_color
 CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
         --run branch \
         --obj_path scene0422_00 \
-        --output_dir results/demo/comparison/scene0422_00/with_initial_color \
+        --output_dir results/demo/comparison/scene0422_00/with_hsv_and_initial_color \
         --prompt "chocolate wall, ocean floor, glass table, steel cabinet, leather chair" \
         --label 1 2 7 3 5 \
         --sigma 5.0  \
@@ -33,4 +33,5 @@ CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
         --color_only \
         --render_all_grad_one \
         --focus_one_thing \
-        --with_prior_color
+        --with_prior_color \
+        --with_hsv_loss

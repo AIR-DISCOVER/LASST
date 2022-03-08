@@ -5,6 +5,8 @@ import copy
 import numpy as np
 import PIL
 from plyfile import PlyData
+import kaolin.ops.mesh
+
 DEVICE = torch.device("cuda:0")
 from IPython import embed
 class Mesh():
@@ -87,17 +89,7 @@ class Mesh():
             for face in self.faces:
                 f.write("f %d %d %d\n" % (face[0] + 1, face[1] + 1, face[2] + 1))
 
-    def mask_mesh(self, text_label, normals=False):
-
-        # focus on only one things with labels
-        # FixMe: text_label should be fixed
-
-        ver_mask = self.labels.eq(text_label)
-
-        face_num = self.faces.shape[0]
-        face_mask = torch.ones([face_num]).eq(1).to(device)
-        for i in range(face_num):
-            face_mask[i] = ver_mask[self.faces[i]].all()
+    def mask_mesh(self, ver_mask, face_mask, old_indice_to_new, new_indice_to_old, normals=False):
 
         mesh = copy.deepcopy(self)
         mesh.vertices = self.vertices[ver_mask]
@@ -107,6 +99,22 @@ class Mesh():
         if self.colors is not None:
             mesh.colors = self.colors[ver_mask]
 
+        mesh.faces = self.faces[face_mask]
+        mesh.faces = old_indice_to_new[mesh.faces].to(device)
+        if normals:
+            mesh.face_normals = self.face_normals[face_mask]
+        mesh.face_attributes = self.face_attributes[0][face_mask].unsqueeze(0)
+
+        return mesh
+
+    def get_mask(self, text_label):
+
+        ver_mask = self.labels.eq(text_label).to(device)
+
+        face_num = self.faces.shape[0]
+        face_mask = torch.ones([face_num]).eq(1).to(device)
+        for i in range(face_num):
+            face_mask[i] = ver_mask[self.faces[i]].all()
 
         # create new indices
         old_indice_to_new = []
@@ -122,21 +130,9 @@ class Mesh():
         old_indice_to_new = torch.tensor(old_indice_to_new)
         new_indice_to_old = torch.tensor(new_indice_to_old)
 
-        mesh.faces = self.faces[face_mask]
-        mesh.faces = old_indice_to_new[mesh.faces].to(device)
-        if normals:
-            mesh.face_normals = self.face_normals[face_mask]
-        mesh.face_attributes = self.face_attributes[0][face_mask].unsqueeze(0)
-
-        return mesh, old_indice_to_new, new_indice_to_old
-
-    def get_mask(self, text_label):
-
-        ver_mask = self.labels.eq(text_label).to(torch.long).to(device)
-
-        face_num = self.faces.shape[0]
-        face_mask = torch.ones([face_num]).eq(1).to(device)
-        for i in range(face_num):
-            face_mask[i] = ver_mask[self.faces[i]].all()
-        face_mask = face_mask.to(torch.long)
-        return ver_mask, face_mask
+        return ver_mask, face_mask, old_indice_to_new, new_indice_to_old
+    
+    def get_mask_color(self, ver_mask, face_mask, old_indice_to_new, new_indice_to_old):
+        temp_colors = copy.deepcopy(self.colors)
+        temp_colors = temp_colors[ver_mask].to(device)
+        return temp_colors
