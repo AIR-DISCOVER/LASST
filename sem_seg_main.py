@@ -28,6 +28,7 @@ from convert import HSVLoss as HSV
 # 3. random camera pose until fore ground larger that 80%
 # 4. avoid faces
 
+
 def run_branched(args):
     dir = args.output_dir
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
@@ -57,7 +58,7 @@ def run_branched(args):
         init_mesh_colors = init_full_mesh.get_mask_color(ver_mask, face_mask, old_indice_to_new, new_indice_to_old)
 
         if args.focus_one_thing:
-            if not (full_mesh.labels==label).any():
+            if not (full_mesh.labels == label).any():
                 print(f"label {label} is not in this mesh")
                 continue
             if args.render_all_grad_one:
@@ -71,9 +72,7 @@ def run_branched(args):
 
         # with_prior_color: start with original color
         if args.with_prior_color:
-            prior_face_attributes = kaolin.ops.mesh.index_vertices_by_faces(
-                        mesh.colors.unsqueeze(0),
-                        mesh.faces).squeeze()
+            prior_face_attributes = kaolin.ops.mesh.index_vertices_by_faces(mesh.colors.unsqueeze(0), mesh.faces).squeeze()
             prior_ver_color = init_full_mesh.get_mask_color(ver_mask, face_mask, old_indice_to_new, new_indice_to_old)
         else:
             prior_face_attributes = torch.full(size=(mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
@@ -90,27 +89,22 @@ def run_branched(args):
         # dir = args.output_dir
         clip_normalizer = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
         # CLIP Transform
-        clip_transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            clip_normalizer
-        ])
+        clip_transform = transforms.Compose([transforms.Resize((224, 224)), clip_normalizer])
 
         # Augmentation settings
         augment_transform = transforms.Compose([
             transforms.RandomResizedCrop(224, scale=(1, 1)),
-            transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
-            clip_normalizer
+            transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5), clip_normalizer
         ])
 
         # Augmentations for normal network
-        if args.cropforward :
+        if args.cropforward:
             curcrop = args.normmincrop
         else:
             curcrop = args.normmaxcrop
         normaugment_transform = transforms.Compose([
             transforms.RandomResizedCrop(224, scale=(curcrop, curcrop)),
-            transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
-            clip_normalizer
+            transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5), clip_normalizer
         ])
         cropiter = 0
         cropupdate = 0
@@ -125,8 +119,7 @@ def run_branched(args):
         # Displacement-only augmentations
         displaugment_transform = transforms.Compose([
             transforms.RandomResizedCrop(224, scale=(args.normmincrop, args.normmincrop)),
-            transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
-            clip_normalizer
+            transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5), clip_normalizer
         ])
 
         normweight = 1.0
@@ -135,9 +128,19 @@ def run_branched(args):
         input_dim = 6 if args.input_normals else 3
         if args.only_z:
             input_dim = 1
-        mlp = NeuralStyleField(args.sigma, args.depth, args.width, 'gaussian', args.colordepth, args.normdepth,
-                                    args.normratio, args.clamp, args.normclamp, niter=args.n_iter,
-                                    progressive_encoding=args.pe, input_dim=input_dim, exclude=args.exclude).to(device)
+        mlp = NeuralStyleField(args.sigma,
+                               args.depth,
+                               args.width,
+                               'gaussian',
+                               args.colordepth,
+                               args.normdepth,
+                               args.normratio,
+                               args.clamp,
+                               args.normclamp,
+                               niter=args.n_iter,
+                               progressive_encoding=args.pe,
+                               input_dim=input_dim,
+                               exclude=args.exclude).to(device)
         mlp.reset_weights()
 
         optim = torch.optim.Adam(mlp.parameters(), args.learning_rate, weight_decay=args.decay)
@@ -178,11 +181,11 @@ def run_branched(args):
         vertices = copy.deepcopy(mesh.vertices)
         network_input = copy.deepcopy(vertices)
         if args.symmetry == True:
-            network_input[:,2] = torch.abs(network_input[:,2])
+            network_input[:, 2] = torch.abs(network_input[:, 2])
 
         if args.standardize == True:
             # Each channel into z-score
-            network_input = (network_input - torch.mean(network_input, dim=0))/torch.std(network_input, dim=0)
+            network_input = (network_input - torch.mean(network_input, dim=0)) / torch.std(network_input, dim=0)
 
         for i in tqdm(range(args.n_iter)):
             optim.zero_grad()
@@ -207,15 +210,17 @@ def run_branched(args):
                 hsv_loss += (v1.std() - v2.std()).abs()
                 loss += hsv_loss.reshape(1) / 6
 
-            rendered_images, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views, lighting=args.lighting,
-                                                                    show=args.show,
-                                                                    center_azim=args.frontview_center[0],
-                                                                    center_elev=args.frontview_center[1],
-                                                                    std=args.frontview_std,
-                                                                    return_views=True,
-                                                                    background=background,
-                                                                    rand_background=args.rand_background,
-                                                                    rand_focal=args.rand_focal)
+            rendered_images, elev, azim = render.render_center_out_views(sampled_mesh,
+                                                                         num_views=args.n_views,
+                                                                         lighting=args.lighting,
+                                                                         show=args.show,
+                                                                         center_azim=args.frontview_center[0],
+                                                                         center_elev=args.frontview_center[1],
+                                                                         std=args.frontview_std,
+                                                                         return_views=True,
+                                                                         background=background,
+                                                                         rand_background=args.rand_background,
+                                                                         rand_focal=args.rand_focal)
 
             if n_augs == 0:
                 clip_image = clip_transform(rendered_images)
@@ -229,8 +234,7 @@ def run_branched(args):
                 # print(curcrop)
                 normaugment_transform = transforms.Compose([
                     transforms.RandomResizedCrop(224, scale=(curcrop, curcrop)),
-                    transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5),
-                    clip_normalizer
+                    transforms.RandomPerspective(fill=1, p=0.8, distortion_scale=0.5), clip_normalizer
                 ])
 
             if n_augs > 0:
@@ -243,20 +247,20 @@ def run_branched(args):
                             if args.clipavg == "view":
                                 if encoded_text.shape[0] > 1:
                                     loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
-                                                                    torch.mean(encoded_text, dim=0), dim=0)
+                                                                    torch.mean(encoded_text, dim=0),
+                                                                    dim=0)
                                 else:
-                                    loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
-                                                                    encoded_text)
+                                    loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True), encoded_text)
                                     # embed()
                             else:
                                 loss -= torch.mean(torch.cosine_similarity(encoded_renders, encoded_text))
                     if args.image:
                         if encoded_image.shape[0] > 1:
                             loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
-                                                            torch.mean(encoded_image, dim=0), dim=0)
+                                                            torch.mean(encoded_image, dim=0),
+                                                            dim=0)
                         else:
-                            loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
-                                                            encoded_image)
+                            loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True), encoded_image)
                         # if args.image:
                         #     loss -= torch.mean(torch.cosine_similarity(encoded_renders,encoded_image))
             if args.splitnormloss:
@@ -280,23 +284,20 @@ def run_branched(args):
                         if args.prompt:
                             if args.clipavg == "view":
                                 if norm_encoded.shape[0] > 1:
-                                    loss -= normweight * torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
-                                                                                    torch.mean(norm_encoded, dim=0),
-                                                                                    dim=0)
-                                else:
                                     loss -= normweight * torch.cosine_similarity(
-                                        torch.mean(encoded_renders, dim=0, keepdim=True),
-                                        norm_encoded)
+                                        torch.mean(encoded_renders, dim=0), torch.mean(norm_encoded, dim=0), dim=0)
+                                else:
+                                    loss -= normweight * torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
+                                                                                 norm_encoded)
                             else:
-                                loss -= normweight * torch.mean(
-                                    torch.cosine_similarity(encoded_renders, norm_encoded))
+                                loss -= normweight * torch.mean(torch.cosine_similarity(encoded_renders, norm_encoded))
                     if args.image:
                         if encoded_image.shape[0] > 1:
                             loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
-                                                            torch.mean(encoded_image, dim=0), dim=0)
+                                                            torch.mean(encoded_image, dim=0),
+                                                            dim=0)
                         else:
-                            loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
-                                                            encoded_image)
+                            loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True), encoded_image)
                         # if args.image:
                         #     loss -= torch.mean(torch.cosine_similarity(encoded_renders,encoded_image))
                 if args.splitnormloss:
@@ -312,15 +313,15 @@ def run_branched(args):
             if args.geoloss:
                 default_color = torch.zeros(len(mesh.vertices), 3).to(device)
                 default_color[:, :] = torch.tensor([0.5, 0.5, 0.5]).to(device)
-                sampled_mesh.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(default_color.unsqueeze(0),
-                                                                                    sampled_mesh.faces)
-                geo_renders, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views,
-                                                                    show=args.show,
-                                                                    center_azim=args.frontview_center[0],
-                                                                    center_elev=args.frontview_center[1],
-                                                                    std=args.frontview_std,
-                                                                    return_views=True,
-                                                                    background=background)
+                sampled_mesh.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(default_color.unsqueeze(0), sampled_mesh.faces)
+                geo_renders, elev, azim = render.render_center_out_views(sampled_mesh,
+                                                                         num_views=args.n_views,
+                                                                         show=args.show,
+                                                                         center_azim=args.frontview_center[0],
+                                                                         center_elev=args.frontview_center[1],
+                                                                         std=args.frontview_std,
+                                                                         return_views=True,
+                                                                         background=background)
                 if args.n_normaugs > 0:
                     normloss = 0.0
                     ### avgview != aug
@@ -329,14 +330,15 @@ def run_branched(args):
                         encoded_renders = clip_model.encode_image(augmented_image)
                         if norm_encoded.shape[0] > 1:
                             normloss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
-                                                                torch.mean(norm_encoded, dim=0), dim=0)
+                                                                torch.mean(norm_encoded, dim=0),
+                                                                dim=0)
                         else:
-                            normloss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
-                                                                norm_encoded)
+                            normloss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True), norm_encoded)
                         if args.image:
                             if encoded_image.shape[0] > 1:
                                 loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0),
-                                                                torch.mean(encoded_image, dim=0), dim=0)
+                                                                torch.mean(encoded_image, dim=0),
+                                                                dim=0)
                             else:
                                 loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True),
                                                                 encoded_image)  # if args.image:
@@ -365,15 +367,24 @@ def run_branched(args):
                 report_process(args, dir, i, loss, loss_check, losses, rendered_images, label)
 
         if args.focus_one_thing:
-            pred_rgb, pred_normal = export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, vertices,
-                                old_indice_to_new=old_indice_to_new, new_indice_to_old=new_indice_to_old, label = label)
+            pred_rgb, pred_normal = export_full_results(args,
+                                                        dir,
+                                                        losses,
+                                                        mesh,
+                                                        full_mesh,
+                                                        mlp,
+                                                        network_input,
+                                                        vertices,
+                                                        old_indice_to_new=old_indice_to_new,
+                                                        new_indice_to_old=new_indice_to_old,
+                                                        label=label)
             if args.render_all_grad_one:
                 cpu_ver_mask = ver_mask.to(torch.long).detach().cpu()
                 pred_normal = pred_rgb * cpu_ver_mask.unsqueeze(dim=-1)
                 pred_rgb = pred_rgb * cpu_ver_mask.unsqueeze(dim=-1)
             full_pred_normal = full_pred_normal + pred_normal
             full_pred_rgb = full_pred_rgb + pred_rgb
-            
+
             if args.render_all_grad_one:
                 full_final_mask = full_final_mask + cpu_ver_mask
                 del pred_normal
@@ -390,7 +401,8 @@ def run_branched(args):
         full_base_color = torch.full(size=(full_mesh.vertices.shape[0], 3), fill_value=0.5)
         pred_final_color = torch.clamp(full_pred_rgb + full_base_color, 0, 1)
         full_prior_color = full_mesh.colors.detach().cpu()
-        full_final_color = pred_final_color*(full_final_mask.unsqueeze(dim=-1)) + full_prior_color*((1-full_final_mask).unsqueeze(dim=-1))
+        full_final_color = pred_final_color * (full_final_mask.unsqueeze(dim=-1)) + full_prior_color * (
+            (1 - full_final_mask).unsqueeze(dim=-1))
 
     # FixMe: input vertices should be fixed
     if args.color_only:
@@ -400,7 +412,6 @@ def run_branched(args):
 
     objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
     full_mesh.export(os.path.join(dir, f"all_{objbase}_full_final.obj"), color=full_final_color)
-
 
 
 def report_process(args, dir, i, loss, loss_check, losses, rendered_images, label):
@@ -445,7 +456,18 @@ def export_final_results(args, dir, losses, mesh, mlp, network_input, vertices):
         # Save final losses
         torch.save(torch.tensor(losses), os.path.join(dir, "losses.pt"))
 
-def export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, vertices, old_indice_to_new=None, new_indice_to_old=None, label=None):
+
+def export_full_results(args,
+                        dir,
+                        losses,
+                        mesh,
+                        full_mesh,
+                        mlp,
+                        network_input,
+                        vertices,
+                        old_indice_to_new=None,
+                        new_indice_to_old=None,
+                        label=None):
     with torch.no_grad():
         pred_rgb, pred_normal = mlp(network_input)
         pred_rgb = pred_rgb.detach().cpu()
@@ -501,13 +523,12 @@ def export_full_results(args, dir, losses, mesh, full_mesh, mlp, network_input, 
 
 def save_rendered_results(args, dir, final_color, mesh):
     default_color = torch.full(size=(mesh.vertices.shape[0], 3), fill_value=0.5, device=device)
-    mesh.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(default_color.unsqueeze(0),
-                                                                   mesh.faces.to(device))
-    kal_render = Renderer(
-        camera=kal.render.camera.generate_perspective_projection(np.pi / 4, 1280 / 720).to(device),
-        dim=(1280, 720))
+    mesh.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(default_color.unsqueeze(0), mesh.faces.to(device))
+    kal_render = Renderer(camera=kal.render.camera.generate_perspective_projection(np.pi / 4, 1280 / 720).to(device), dim=(1280, 720))
     MeshNormalizer(mesh)()
-    img, mask = kal_render.render_single_view(mesh, args.frontview_center[1], args.frontview_center[0],
+    img, mask = kal_render.render_single_view(mesh,
+                                              args.frontview_center[1],
+                                              args.frontview_center[0],
                                               radius=2.5,
                                               background=torch.tensor([1, 1, 1]).to(device).float(),
                                               return_mask=True)
@@ -521,9 +542,10 @@ def save_rendered_results(args, dir, final_color, mesh):
     img.save(os.path.join(dir, f"init_cluster.png"))
     MeshNormalizer(mesh)()
     # Vertex colorings
-    mesh.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(final_color.unsqueeze(0).to(device),
-                                                                   mesh.faces.to(device))
-    img, mask = kal_render.render_single_view(mesh, args.frontview_center[1], args.frontview_center[0],
+    mesh.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(final_color.unsqueeze(0).to(device), mesh.faces.to(device))
+    img, mask = kal_render.render_single_view(mesh,
+                                              args.frontview_center[1],
+                                              args.frontview_center[0],
                                               radius=2.5,
                                               background=torch.tensor([1, 1, 1]).to(device).float(),
                                               return_mask=True)
@@ -541,13 +563,12 @@ def update_mesh(args, mlp, network_input, prior_face_attributes, sampled_mesh, v
     pred_rgb, pred_normal = mlp(network_input)
 
     if args.render_all_grad_one:
-        pred_rgb = pred_rgb*(ver_mask.to(torch.long)).unsqueeze(dim=-1)
-        pred_normal = pred_normal*(ver_mask.to(torch.long)).unsqueeze(dim=-1)
+        pred_rgb = pred_rgb * (ver_mask.to(torch.long)).unsqueeze(dim=-1)
+        pred_normal = pred_normal * (ver_mask.to(torch.long)).unsqueeze(dim=-1)
 
     # sampled_mesh refers to the focused thing
     sampled_mesh.face_attributes = prior_face_attributes + kaolin.ops.mesh.index_vertices_by_faces(
-        pred_rgb.unsqueeze(0),
-        sampled_mesh.faces)
+        pred_rgb.unsqueeze(0), sampled_mesh.faces)
     if args.color_only:
         sampled_mesh.vertices = vertices
     else:
@@ -556,11 +577,16 @@ def update_mesh(args, mlp, network_input, prior_face_attributes, sampled_mesh, v
     return pred_rgb
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_path', type=str, default='meshes/mesh1.obj')
-    parser.add_argument('--prompt', nargs="+", default='a pig with pants', help='some prompts separated by commas, like \'icy wall, wooden chair, marble floor\', remember you should add the corresponding label number to args.label')
+    parser.add_argument(
+        '--prompt',
+        nargs="+",
+        default='a pig with pants',
+        help=
+        'some prompts separated by commas, like \'icy wall, wooden chair, marble floor\', remember you should add the corresponding label number to args.label'
+    )
     parser.add_argument('--normprompt', nargs="+", default=None)
     parser.add_argument('--promptlist', nargs="+", default=None)
     parser.add_argument('--normpromptlist', nargs="+", default=None)
@@ -625,13 +651,50 @@ if __name__ == '__main__':
     parser.add_argument('--standardize', default=False, action='store_true')
     parser.add_argument('--rand_background', default=False, action='store_true')
     parser.add_argument('--lighting', default=False, action='store_true')
-    parser.add_argument('--color_only', default=False, action='store_true', help='only change mesh color instead of changing both color and vertices\' place')
-    parser.add_argument('--with_prior_color', default=False, action='store_true', help='render the mesh with its previous color instead of RGB(0.5, 0.5, 0.5)*255')
-    parser.add_argument('--label', nargs='+', type=int, default=5, help='need to correspond to the prompt one by one, can read label2class_help.txt to look for labels to class names')
-    parser.add_argument('--focus_one_thing', default=False, action='store_true', help='focus on at each rendering vertices/faces with specified label instead of full mesh')
-    parser.add_argument('--render_all_grad_one', default=False, action='store_true', help='use full mesh to render, while only change vertices/faces with specified label, must be used with arg.focus_one_thing')
-    parser.add_argument('--rand_focal', default=False, action='store_true', help='make carema focal lenth change randomly at each rendering')
-    parser.add_argument('--with_hsv_loss', default=False, action='store_true', help='add hsv loss to the loss function')
+
+    parser.add_argument(
+        '--color_only',
+        default=False,
+        action='store_true',
+        help='only change mesh color instead of changing both color and vertices\' place',
+    )
+    parser.add_argument(
+        '--with_prior_color',
+        default=False,
+        action='store_true',
+        help='render the mesh with its previous color instead of RGB(0.5, 0.5, 0.5)*255',
+    )
+    parser.add_argument(
+        '--label',
+        nargs='+',
+        type=int,
+        default=5,
+        help='need to correspond to the prompt one by one, can read label2class_help.txt to look for labels to class names',
+    )
+    parser.add_argument(
+        '--focus_one_thing',
+        default=False,
+        action='store_true',
+        help='focus on at each rendering vertices/faces with specified label instead of full mesh',
+    )
+    parser.add_argument(
+        '--render_all_grad_one',
+        default=False,
+        action='store_true',
+        help='use full mesh to render, while only change vertices/faces with specified label, must be used with arg.focus_one_thing',
+    )
+    parser.add_argument(
+        '--rand_focal',
+        default=False,
+        action='store_true',
+        help='make carema focal lenth change randomly at each rendering',
+    )
+    parser.add_argument(
+        '--with_hsv_loss',
+        default=False,
+        action='store_true',
+        help='add hsv loss to the loss function',
+    )
 
     # TODO add help for key options
     # args = parser.parse_args()
@@ -639,15 +702,14 @@ if __name__ == '__main__':
 
     run_branched(args)
 
-
 # For comparison: 10*scenes
 # 1. w/ w/o HSV regularization
 # 2. full house / part rendering
-# 3. random / fixed focal lengths 
+# 3. random / fixed focal lengths
 # 4. w/ or w/o initial colors
 # +5. w/ or w/o semantic mask
 
-# Future 
+# Future
 # 1. full house regularization
 # 2. camera pose
-# 3. feature interpolation 
+# 3. feature interpolation
