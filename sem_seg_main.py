@@ -38,8 +38,8 @@ def run_branched(args):
     torch.cuda.manual_seed_all(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
-    torch.backends.cudnn.benchmark = True
-    torch.backends.cudnn.deterministic = False
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
 
     objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
 
@@ -47,7 +47,6 @@ def run_branched(args):
     full_mesh = Mesh(args.obj_path)
     init_full_mesh = copy.deepcopy(full_mesh)
 
-    #focus_one_thing = True
     full_pred_rgb = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
     full_pred_normal = torch.zeros([full_mesh.vertices.shape[0], 3], dtype=torch.float32)
     full_final_mask = torch.zeros([full_mesh.vertices.shape[0]], dtype=torch.float32)
