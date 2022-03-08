@@ -13,40 +13,44 @@ DATE = datetime.today().strftime('%Y-%m-%d')
 # 2022-02-12: adopt new textures and apply those to all classes in a scene
 # 2022-03-01: fix the big bug of incorrespondance between class and label
 
-COMMAND = f'python sem_seg_main.py \
-        --run branch \
-        --obj_path $SCENE_ID$ \
-        --output_dir \"results/batch/{DATE}/$SCENE_ID$/$NAME$\" \
-        --prompt \"$PROMPT$\" \
-        --label {" ".join([str(i) for i in list(range(1, 37))])}\
-        --sigma 5.0  \
-        --clamp tanh \
-        --n_normaugs 4 \
-        --n_augs 1 \
-        --normmincrop 0.1 \
-        --normmaxcrop 0.1 \
-        --cropforward \
-        --colordepth 2 \
-        --normdepth 2   \
-        --frontview \
-        --frontview_std 4 \
-        --clipavg view \
-        --lr_decay 0.9 \
-        --clamp tanh \
-        --normclamp tanh  \
-        --maxcrop 1.0 \
-        --save_render \
-        --seed 11 \
-        --n_iter 1500 \
-        --learning_rate 0.0005 \
-        --normal_learning_rate 0.0005 \
-        --background 0.5 0.5 0.5 \
-        --rand_background \
-        --frontview_center 1.8707 0.6303 \
-        --with_prior_color \
-        --normratio 0.05 \
-        --color_only \
-        --focus_one_thing'
+COMMAND = f"""
+python sem_seg_main.py 
+    --run branch 
+    --obj_path $SCENE_ID$ 
+    --output_dir \"results/batch/{DATE}/$SCENE_ID$/$NAME$\" 
+    --prompt \"$PROMPT$\" 
+    --label {" ".join([str(i) for i in list(range(1, 37))])}
+    --sigma 5.0  
+    --clamp tanh 
+    --n_normaugs 4 
+    --n_augs 1 
+    --normmincrop 0.1 
+    --normmaxcrop 0.1 
+    --cropforward 
+    --colordepth 2 
+    --normdepth 2   
+    --frontview 
+    --frontview_std 4 
+    --clipavg view 
+    --lr_decay 0.9 
+    --clamp tanh 
+    --normclamp tanh  
+    --maxcrop 1.0 
+    --save_render 
+    --seed 11 
+    --n_iter 1500 
+    --learning_rate 0.0005 
+    --normal_learning_rate 0.0005 
+    --background 0.5 0.5 0.5 
+    --rand_background 
+    --frontview_center 1.8707 0.6303 
+    --with_prior_color 
+    --normratio 0.05 
+    --color_only 
+    --focus_one_thing 
+    --rand_focal 
+    --with_hsv_loss 
+"""
 
 # %%
 
@@ -72,7 +76,7 @@ TEXTURE = [
     'diamond texture',
     'fabric',
     'icy',
-    'ceramic'
+    'ceramic',
 ]
 
 CLASS_LABELS = (
@@ -118,13 +122,12 @@ CLASS_LABELS = (
     (40, "other properties"),
 )
 
-
 while True:
-# for i in range(1):
+    # for i in range(1):
     scene_id = SCENE_LIST[randint(0, len(SCENE_LIST) - 1)].strip('.ply')
     tex_id = [randint(0, len(TEXTURE) - 1) for _ in range(40)]
 
-    prompt = f"{','.join([f'{TEXTURE[tex_id[idx]]} {CLASS_LABELS[idx][1]}' for idx in range(40)])}"        
+    prompt = f"{','.join([f'{TEXTURE[tex_id[idx]]} {CLASS_LABELS[idx][1]}' for idx in range(40)])}"
     name = f"{randint(1, 1048576)}"
 
     command = COMMAND.replace('$NAME$', str(name)).replace('$PROMPT$', str(prompt)).replace('$SCENE_ID$', str(scene_id))
