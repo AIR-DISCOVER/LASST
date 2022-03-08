@@ -6,14 +6,33 @@
         # --output_dir results/demo/comparison/scene0686_01/init \
         # --prompt "icy wall, steel floor, Golden toilet, wooden sink" \
         # --label 1 2 33 34 \
+        # --obj_path scene0355_00 \
+        # --output_dir results/demo/comparison/scene0355_00/test \
+        # --prompt "Bamboo wall, brick floor, plastic chair, stone table" \
+        # --label 1 2 5 7 \
+        # --obj_path scene0449_00 \
+        # --output_dir results/demo/comparison/scene0449_00/init \
+        # --prompt "cement floor, fabric towel, wooden door, steel sink, golden toilet, " \
+        # --label 2 27 8 34 33 \
+        # --obj_path scene0435_01 \
+        # --output_dir results/demo/comparison/scene0435_01/init \
+        # --prompt "Diamond bed, icy floor, wall with murals, leather pillow, marble desk" \
+        # --label 4 2 1 18 14 \
+        # --obj_path scene0434_01 \
+        # --output_dir results/demo/comparison/scene0434_01/init \
+        # --prompt "diamond toilet, marble wall, wooden cabinet, steel bathtub, shower curtain with rainbow" \
+        # --label 33 1 3 36 28 \
+        # --obj_path scene0422_00 \
+        # --output_dir results/demo/comparison/scene0422_00/init \
+        # --prompt "chocolate wall, ocean floor, glass table, steel cabinet, leather chair" \
+        # --label 1 2 7 3 5 \
 
-
-CUDA_VISIBLE_DEVICES=0 python -m pdb sem_seg_main.py \
+CUDA_VISIBLE_DEVICES=2 python sem_seg_main.py \
         --run branch \
-        --obj_path scene0355_00 \
-        --output_dir results/demo/comparison/scene0355_00/test \
-        --prompt "Bamboo wall, brick floor, plastic chair, stone table" \
-        --label 1 2 5 7 \
+        --obj_path scene0422_00 \
+        --output_dir results/demo/comparison/scene0422_00/init \
+        --prompt "icy wall, ocean floor, wooden chair, water curtain, " \
+        --label 1 2 5 16 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \

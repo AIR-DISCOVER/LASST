@@ -44,7 +44,7 @@ label_to_class = {
     40: "other properties",
 }
 
-a = PlyData.read("/home/tb5zhh/data/full/train/scene0654_00.ply")
+a = PlyData.read("/home/tb5zhh/data/full/train/scene0418_02.ply")
 
 labels = []
 classes = []
@@ -53,4 +53,5 @@ for i in a.elements[0]['label']:
         labels.append((i))
         classes.append((i, label_to_class[i]))
 
-print(classes)
+print(classes[::2])
+print(classes[1::2])

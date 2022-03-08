@@ -1,9 +1,10 @@
-CUDA_VISIBLE_DEVICES=3 python -m pdb sem_seg_main.py \
+# with_hsv
+CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
         --run branch \
-        --obj_path scene0137_02 \
-        --output_dir results/demo/comparison/scene0137_02/hsv_test \
-        --prompt "brick wall, marble floor, wooden chairs, leather bed" \
-        --label 1 2 5 4 \
+        --obj_path scene0422_00 \
+        --output_dir results/demo/comparison/scene0422_00/with_hsv \
+        --prompt "chocolate wall, ocean floor, glass table, steel cabinet, leather chair" \
+        --label 1 2 7 3 5 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \

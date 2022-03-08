@@ -196,16 +196,16 @@ def run_branched(args):
                 masked_mesh_color = prior_ver_color + pred_rgb[ver_mask]
                 h1, s1, v1 = HSV().get_hsv(masked_mesh_color.unsqueeze(-1).unsqueeze(-1))
                 h2, s2, v2 = HSV().get_hsv(init_mesh_colors.unsqueeze(-1).unsqueeze(-1))
-                hsv_loss += 0.9 * torch.min((h1 - h2).abs(), 1 - ((h1 - h2).abs())).mean()
-                hsv_loss += 0.9 * (s1 - s2).abs().mean()
-                hsv_loss += 0.9 * (v1 - v2).abs().mean()
-                hsv_loss += (h1.mean() - h2.mean()).abs()
-                hsv_loss += (s1.mean() - s2.mean()).abs()
-                hsv_loss += (v1.mean() - v2.mean()).abs()
-                hsv_loss += (h1.std() - h2.std()).abs()
+                hsv_loss += 0.1 * torch.min((h1 - h2).abs(), 1 - ((h1 - h2).abs())).mean()
+                hsv_loss += 0.1 * (s1 - s2).abs().mean()
+                hsv_loss += 0.1 * (v1 - v2).abs().mean()
+                hsv_loss += 0.5 * torch.min((h1.mean() - h2.mean()).abs(), 1 - ((h1.mean() - h2.mean()).abs()))
+                hsv_loss += 0.5 * (s1.mean() - s2.mean()).abs()
+                hsv_loss += 0.5 * (v1.mean() - v2.mean()).abs()
+                hsv_loss += torch.min((h1.std() - h2.std()).abs(), 1 - ((h1.std() - h2.std()).abs()))
                 hsv_loss += (s1.std() - s2.std()).abs()
                 hsv_loss += (v1.std() - v2.std()).abs()
-                loss += hsv_loss.reshape(1)
+                loss += hsv_loss.reshape(1) / 6
 
             rendered_images, elev, azim = render.render_center_out_views(sampled_mesh, num_views=args.n_views, lighting=args.lighting,
                                                                     show=args.show,
@@ -361,7 +361,7 @@ def run_branched(args):
                 if i % args.decayfreq == 0:
                     normweight *= args.cropdecay
 
-            if i % 10 == 0:
+            if i % 100 == 0:
                 report_process(args, dir, i, loss, loss_check, losses, rendered_images, label)
 
         if args.focus_one_thing:

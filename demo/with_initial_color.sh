@@ -1,9 +1,10 @@
-CUDA_VISIBLE_DEVICES=2 python sem_seg_main.py \
+# with_initial_color
+CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
         --run branch \
-        --obj_path scene0355_00 \
-        --output_dir results/demo/comparison/scene0355_00/with_initial_color \
-        --prompt "Bamboo wall, brick floor, plastic chair, stone table" \
-        --label 1 2 5 7 \
+        --obj_path scene0422_00 \
+        --output_dir results/demo/comparison/scene0422_00/with_initial_color \
+        --prompt "chocolate wall, ocean floor, glass table, steel cabinet, leather chair" \
+        --label 1 2 7 3 5 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \
