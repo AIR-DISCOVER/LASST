@@ -1,11 +1,10 @@
 IDX=$RANDOM
 echo $IDX
 python sem_seg_main.py \
-        --run branch \
         --obj_path scene0158_02 \
-        --output_dir results/teaser/$IDX/scene0158_02 \
-        --prompt "carved grey wall" \
-        --label 24 \
+        --output_dir results/test/$IDX/scene0158_02 \
+        --prompt "marble wall" \
+        --label 1 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \
@@ -14,7 +13,6 @@ python sem_seg_main.py \
         --normmaxcrop 0.1 \
         --colordepth 2 \
         --normdepth 2   \
-        --frontview \
         --frontview_std 4 \
         --clipavg view \
         --lr_decay 0.9 \
@@ -23,16 +21,16 @@ python sem_seg_main.py \
         --maxcrop 1.0 \
         --save_render \
         --seed 42 \
-        --n_iter 1500 \
+        --n_iter 100 \
         --learning_rate 0.0005 \
-        --normal_learning_rate 0.0005 \
         --background 0.5 0.5 0.5 \
         --rand_background \
         --frontview_center 1.7 0.75 \
         --with_prior_color \
         --normratio 0.05 \
         --color_only \
-        --focus_one_thing\
-        --hsv_diff_constraints \
-        --hsv_stat_constraints
+        --render_one_grad_one \
+        --with_hsv_loss \
+        --report_step 10
+        #--regress \
 echo $IDX

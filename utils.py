@@ -31,7 +31,7 @@ if torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 
-clip_model, preprocess = clip.load('ViT-B/32', device, jit=False)
+clip_model, preprocess = clip.load('ViT-B/32', device, jit=True)
 
 
 def get_camera_from_view(elev, azim, r=3.0):
