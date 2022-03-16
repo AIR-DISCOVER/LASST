@@ -194,9 +194,7 @@ def run(args):
                     h2, s2, v2 = HSV().get_hsv(mesh.colors[ver_mask].unsqueeze(-1).unsqueeze(-1))
                     # h3, s3, v3 = HSV().get_hsv(init_mesh.colors[ver_mask].unsqueeze(-1).unsqueeze(-1))  # TODO
 
-                hsv_loss += args.hsv_loss_weight * (torch.min((h1 - h2).abs(), 1 - ((h1 - h2).abs())).mean() + 
-                                            (s1 - s2).abs().mean() + 
-                                            (v1 - v2).abs().mean()) / 3
+                hsv_loss += args.hsv_loss_weight * (torch.min((h1 - h2).abs(), 1 - ((h1 - h2).abs())).mean() + (s1 - s2).abs().mean() + (v1 - v2).abs().mean()) / 3
                 # hsv_loss += 0.5 * torch.min((h1.mean() - h2.mean()).abs(), 1 - ((h1.mean() - h2.mean()).abs()))
                 # hsv_loss += 0.5 * (s1.mean() - s2.mean()).abs()
                 # hsv_loss += 0.5 * (v1.mean() - v2.mean()).abs()
@@ -288,7 +286,6 @@ def run(args):
             #     for param in mlp.mlp_rgb.parameters():
             #         param.requires_grad = False
 
-
             # Also run separate loss on the uncolored displacements
             if args.geoloss:
                 # FIXME
@@ -354,7 +351,13 @@ def run(args):
                     norm_loss_weight *= args.norm_loss_decay
 
             if i % args.report_step == 0:
-                report_process(args.dir, i, loss, rendered_images, label, {'hsv_loss': hsv_loss, 'image_loss': image_loss, 'text_loss': text_loss, 'norm_image_loss': norm_image_loss, 'norm_text_loss': norm_text_loss})
+                report_process(args.dir, i, loss, rendered_images, label, {
+                    'hsv_loss': hsv_loss,
+                    'image_loss': image_loss,
+                    'text_loss': text_loss,
+                    'norm_image_loss': norm_image_loss,
+                    'norm_text_loss': norm_text_loss
+                })
 
         if args.render_one_grad_one:
             full_pred_rgb[ver_mask] = output_mesh.colors
@@ -381,6 +384,7 @@ def report_process(dir, i, loss, rendered_images, label, loss_group):
     if loss_group is not None:
         print('\t' + '\t'.join([f'{k}:{w.item():2f}' for k, w in loss_group.items()]))
     torchvision.utils.save_image(rendered_images, os.path.join(dir, 'label_{}_iter_{}.jpg'.format(label, i)))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -429,10 +433,7 @@ if __name__ == '__main__':
     parser.add_argument('--lighting', default=False, action='store_true', help='Renderer: use lighting and cast shadows')
     parser.add_argument('--rand_focal', default=False, action='store_true', help='make carema focal lenth change randomly at each rendering')
     parser.add_argument('--render_one_grad_one', default=False, action='store_true', help='focus on at each rendering vertices/faces with specified label instead of full mesh')
-    parser.add_argument('--render_all_grad_one',
-                        default=False,
-                        action='store_true',
-                        help='use full mesh to render, while only change vertices/faces with specified label, must be used with arg.render_one_grad_one')
+    parser.add_argument('--render_all_grad_one', default=False, action='store_true', help='use full mesh to render, while only change vertices/faces with specified label')
     parser.add_argument('--with_prior_color', default=False, action='store_true', help='render the mesh with its previous color instead of RGB(0.5, 0.5, 0.5)*255')
     # ==============================================================
 
@@ -446,15 +447,15 @@ if __name__ == '__main__':
     parser.add_argument('--n_normaugs', type=int, default=0, help="Augmentation: Number of normalized augmentation")
     parser.add_argument('--maxcrop', type=float, default=1, help="Augmentation: cropping max range for augmenration")
     parser.add_argument('--mincrop', type=float, default=1, help="Augmentation: cropping min range for augmenration")
-    parser.add_argument('--normmincrop', type=float, default=0.1, help="Augmentation: cropping min range for normalized augmenration")  
-    parser.add_argument('--normmaxcrop', type=float, default=0.1, help="Augmentation: cropping max range for normalized augmenration")  
-    parser.add_argument('--cropsteps', type=int, default=1, help="Augmentation: step before adjusting normalized augmenration cropping ratio") 
-    parser.add_argument('--cropforward', action='store_true', help="Augmentation: if true, cropping ratio will be increasing with step instead of decreasing") 
+    parser.add_argument('--normmincrop', type=float, default=0.1, help="Augmentation: cropping min range for normalized augmenration")
+    parser.add_argument('--normmaxcrop', type=float, default=0.1, help="Augmentation: cropping max range for normalized augmenration")
+    parser.add_argument('--cropsteps', type=int, default=1, help="Augmentation: step before adjusting normalized augmenration cropping ratio")
+    parser.add_argument('--cropforward', action='store_true', help="Augmentation: if true, cropping ratio will be increasing with step instead of decreasing")
     # ==============================================================
 
     # =================            Misc            =================
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--regress', default=False, action="store_true", help="not ready") # TODO
+    parser.add_argument('--regress', default=False, action="store_true", help="not ready")  # TODO
     parser.add_argument('--report_step', default=100, type=int, help='The step interval between report calculation')
     # ==============================================================
 
@@ -465,7 +466,7 @@ if __name__ == '__main__':
     parser.add_argument('--hsv_loss_weight', default=None, type=float, help='add hsv loss to the loss function')
     parser.add_argument('--rgb_loss_weight', default=None, type=float, help='add rgb loss to the loss function')
     parser.add_argument('--color_only', default=False, action='store_true', help='only change mesh color instead of changing both color and vertices\' place')
-    parser.add_argument('--norm_loss_decay', type=float, default=1.0) 
+    parser.add_argument('--norm_loss_decay', type=float, default=1.0)
     parser.add_argument('--norm_loss_decay_freq', type=int, default=None)
     # ==============================================================
 
@@ -477,10 +478,10 @@ if __name__ == '__main__':
         idx += 1
     (Path(args.output_dir) / f'{idx}').mkdir(parents=True, exist_ok=False)
     args.dir = f"{args.output_dir}/{idx}"
-    
+
     objbase, _ = os.path.splitext(os.path.basename(args.obj_path))
     with open(Path(args.output_dir) / f'{idx}' / 'config.json', 'w') as f:
-        json.dump(vars(args), f, indent=4) 
+        json.dump(vars(args), f, indent=4)
 
     run(args)
 
