@@ -1,10 +1,10 @@
 # with_hsv
 CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
         --run branch \
-        --obj_path scene0422_00 \
-        --output_dir results/demo/comparison/scene0422_00/with_hsv \
-        --prompt "chocolate wall, ocean floor, glass table, steel cabinet, leather chair" \
-        --label 1 2 7 3 5 \
+        --obj_path scene0413_00 \
+        --output_dir results/demo/comparison/scene0413_00/with_hsv \
+        --prompt "snow wall, carpeted floor, steel cabinet, evening dress" \
+        --label 1 2 3 21 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \

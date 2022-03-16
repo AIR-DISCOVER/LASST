@@ -1,5 +1,5 @@
 from turtle import back
-from mesh import Mesh
+from mesh_scannet import Mesh
 import kaolin as kal
 from utils import (get_camera_from_view2, get_camera_from_inside_out)
 import matplotlib.pyplot as plt
@@ -10,10 +10,7 @@ import numpy as np
 
 class Renderer():
 
-    def __init__(self, mesh='sample.obj',
-                 lights=torch.tensor([1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
-                 camera=None,
-                 dim=(224, 224)):
+    def __init__(self, mesh='sample.obj', lights=torch.tensor([1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]), camera=None, dim=(224, 224)):
 
         if camera is None:
             # changing fovyangle is equivalent to changing focal length
@@ -37,22 +34,19 @@ class Renderer():
         rgb_mask = []
 
         if background is not None:
-            face_attributes = [
-                mesh.face_attributes,
-                torch.ones((1, n_faces, 3, 1), device='cuda')
-            ]
+            face_attributes = [mesh.face_attributes, torch.ones((1, n_faces, 3, 1), device='cuda')]
         else:
             face_attributes = mesh.face_attributes
 
         for i in range(num_views):
             camera_transform = get_camera_from_view2(elev[i], azim[i], r=2).to(device)
-            face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(
-                mesh.vertices.to(device), mesh.faces.to(device), self.camera_projection,
-                camera_transform=camera_transform)
+            face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(mesh.vertices.to(device),
+                                                                                                       mesh.faces.to(device),
+                                                                                                       self.camera_projection,
+                                                                                                       camera_transform=camera_transform)
 
-            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(
-                self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1],
-                face_vertices_image, face_attributes, face_normals[:, :, -1])
+            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1], face_vertices_image, face_attributes,
+                                                                                     face_normals[:, :, -1])
             masks.append(soft_mask)
 
             if background is not None:
@@ -94,8 +88,7 @@ class Renderer():
 
         return images
 
-    def render_single_view(self, mesh, elev=0, azim=0, show=False, lighting=True, background=None, radius=2,
-                           return_mask=False):
+    def render_single_view(self, mesh, elev=0, azim=0, show=False, lighting=True, background=None, radius=2, return_mask=False):
         # if mesh is None:
         #     mesh = self._current_mesh
         verts = mesh.vertices
@@ -103,20 +96,18 @@ class Renderer():
         n_faces = faces.shape[0]
 
         if background is not None:
-            face_attributes = [
-                mesh.face_attributes,
-                torch.ones((1, n_faces, 3, 1), device='cuda')
-            ]
+            face_attributes = [mesh.face_attributes, torch.ones((1, n_faces, 3, 1), device='cuda')]
         else:
             face_attributes = mesh.face_attributes
 
         camera_transform = get_camera_from_view2(torch.tensor(elev), torch.tensor(azim), r=radius).to(device)
-        face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(
-            mesh.vertices.to(device), mesh.faces.to(device), self.camera_projection, camera_transform=camera_transform)
+        face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(mesh.vertices.to(device),
+                                                                                                   mesh.faces.to(device),
+                                                                                                   self.camera_projection,
+                                                                                                   camera_transform=camera_transform)
 
-        image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(
-            self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1],
-            face_vertices_image, face_attributes, face_normals[:, :, -1])
+        image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1], face_vertices_image, face_attributes, face_normals[:, :,
+                                                                                                                                                                                                 -1])
 
         # Debugging: color where soft mask is 1
         # tmp_rgb = torch.ones((224,224,3))
@@ -152,8 +143,7 @@ class Renderer():
             return image.permute(0, 3, 1, 2), mask
         return image.permute(0, 3, 1, 2)
 
-    def render_uniform_views(self, mesh, num_views=8, show=False, lighting=True, background=None, mask=False,
-                             center=[0, 0], radius=2.0):
+    def render_uniform_views(self, mesh, num_views=8, show=False, lighting=True, background=None, mask=False, center=[0, 0], radius=2.0):
 
         # if mesh is None:
         #     mesh = self._current_mesh
@@ -162,31 +152,26 @@ class Renderer():
         faces = mesh.faces
         n_faces = faces.shape[0]
 
-        azim = torch.linspace(center[0], 2 * np.pi + center[0], num_views + 1)[
-               :-1]  # since 0 =360 dont include last element
-        elev = torch.cat((torch.linspace(center[1], np.pi / 2 + center[1], int((num_views + 1) / 2)),
-                          torch.linspace(center[1], -np.pi / 2 + center[1], int((num_views) / 2))))
+        azim = torch.linspace(center[0], 2 * np.pi + center[0], num_views + 1)[:-1]  # since 0 =360 dont include last element
+        elev = torch.cat((torch.linspace(center[1], np.pi / 2 + center[1], int((num_views + 1) / 2)), torch.linspace(center[1], -np.pi / 2 + center[1], int((num_views) / 2))))
         images = []
         masks = []
         background_masks = []
 
         if background is not None:
-            face_attributes = [
-                mesh.face_attributes,
-                torch.ones((1, n_faces, 3, 1), device='cuda')
-            ]
+            face_attributes = [mesh.face_attributes, torch.ones((1, n_faces, 3, 1), device='cuda')]
         else:
             face_attributes = mesh.face_attributes
 
         for i in range(num_views):
             camera_transform = get_camera_from_view2(elev[i], azim[i], r=radius).to(device)
-            face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(
-                mesh.vertices.to(device), mesh.faces.to(device), self.camera_projection,
-                camera_transform=camera_transform)
+            face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(mesh.vertices.to(device),
+                                                                                                       mesh.faces.to(device),
+                                                                                                       self.camera_projection,
+                                                                                                       camera_transform=camera_transform)
 
-            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(
-                self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1],
-                face_vertices_image, face_attributes, face_normals[:, :, -1])
+            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1], face_vertices_image, face_attributes,
+                                                                                     face_normals[:, :, -1])
             masks.append(soft_mask)
 
             # Debugging: color where soft mask is 1
@@ -237,8 +222,7 @@ class Renderer():
 
         return images
 
-    def render_front_views(self, mesh, num_views=8, std=8, center_elev=0, center_azim=0, show=False, lighting=True,
-                           background=None, mask=False, return_views=False, rand_background=False):
+    def render_front_views(self, mesh, num_views=8, std=8, center_elev=0, center_azim=0, show=False, lighting=True, background=None, mask=False, return_views=False, rand_background=False):
         # Front view with small perturbations in viewing angle
         verts = mesh.vertices
         faces = mesh.faces
@@ -251,21 +235,18 @@ class Renderer():
         rgb_mask = []
 
         if background is not None:
-            face_attributes = [
-                mesh.face_attributes,
-                torch.ones((1, n_faces, 3, 1), device='cuda')
-            ]
+            face_attributes = [mesh.face_attributes, torch.ones((1, n_faces, 3, 1), device='cuda')]
         else:
             face_attributes = mesh.face_attributes
 
         for i in range(num_views):
             camera_transform = get_camera_from_view2(elev[i], azim[i], r=2).to(device)
-            face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(
-                mesh.vertices.to(device), mesh.faces.to(device), self.camera_projection,
-                camera_transform=camera_transform)
-            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(
-                self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1],
-                face_vertices_image, face_attributes, face_normals[:, :, -1])
+            face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(mesh.vertices.to(device),
+                                                                                                       mesh.faces.to(device),
+                                                                                                       self.camera_projection,
+                                                                                                       camera_transform=camera_transform)
+            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1], face_vertices_image, face_attributes,
+                                                                                     face_normals[:, :, -1])
             masks.append(soft_mask)
 
             # Debugging: color where soft mask is 1
@@ -317,8 +298,7 @@ class Renderer():
         else:
             return images
 
-    def render_prompt_views(self, mesh, prompt_views, center=[0, 0], background=None, show=False, lighting=True,
-                            mask=False):
+    def render_prompt_views(self, mesh, prompt_views, center=[0, 0], background=None, show=False, lighting=True, mask=False):
 
         # if mesh is None:
         #     mesh = self._current_mesh
@@ -355,21 +335,18 @@ class Renderer():
                 azim = 0 + center[0]
 
             if background is not None:
-                face_attributes = [
-                    mesh.face_attributes,
-                    torch.ones((1, n_faces, 3, 1), device='cuda')
-                ]
+                face_attributes = [mesh.face_attributes, torch.ones((1, n_faces, 3, 1), device='cuda')]
             else:
                 face_attributes = mesh.face_attributes
 
             camera_transform = get_camera_from_view2(torch.tensor(elev), torch.tensor(azim), r=2).to(device)
-            face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(
-                mesh.vertices.to(device), mesh.faces.to(device), self.camera_projection,
-                camera_transform=camera_transform)
+            face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(mesh.vertices.to(device),
+                                                                                                       mesh.faces.to(device),
+                                                                                                       self.camera_projection,
+                                                                                                       camera_transform=camera_transform)
 
-            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(
-                self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1],
-                face_vertices_image, face_attributes, face_normals[:, :, -1])
+            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1], face_vertices_image, face_attributes,
+                                                                                     face_normals[:, :, -1])
             masks.append(soft_mask)
 
             if background is not None:
@@ -413,28 +390,36 @@ class Renderer():
         else:
             return images, masks
 
-    def render_center_out_views(self, mesh, num_views=8, std=8, center_elev=0, center_azim=0, show=False, lighting=True,
-                           background=None, mask=False, return_views=False, rand_background=False, rand_focal=False):
+    def render_center_out_views(self,
+                                mesh,
+                                num_views=8,
+                                std=8,
+                                center_elev=0,
+                                center_azim=0,
+                                show=False,
+                                lighting=True,
+                                background=None,
+                                mask=False,
+                                return_views=False,
+                                rand_background=False,
+                                fixed=True,
+                                rand_focal=False):
         """
             camera view from inside out
         """
-        verts = mesh.vertices
         faces = mesh.faces
         n_faces = faces.shape[0]
 
         #elev = torch.cat((torch.tensor([center_elev]), torch.randn(num_views - 1) * np.pi / std + center_elev))
         #elev = torch.cat((torch.tensor([center_elev]), torch.randn(num_views - 1) * (np.pi / 2) / std + center_elev))
-        elev = torch.tensor([center_elev for i in range(num_views)])
+        elev = torch.tensor([center_elev * np.pi for i in range(num_views)])
         azim = torch.cat((torch.tensor([center_azim]), torch.randn(num_views - 1) * 2 * np.pi / std + center_azim))
         images = []
         masks = []
         rgb_mask = []
 
         if background is not None:
-            face_attributes = [
-                mesh.face_attributes,
-                torch.ones((1, n_faces, 3, 1), device='cuda')
-            ]
+            face_attributes = [mesh.face_attributes, torch.ones((1, n_faces, 3, 1), device='cuda')]
         else:
             face_attributes = mesh.face_attributes
 
@@ -442,16 +427,16 @@ class Renderer():
             # Fixme: get camera from inside(center/sparase area) out
             camera_transform = get_camera_from_inside_out(elev[i], azim[i], r=1.0).to(device)
             if rand_focal:
-                fovyangle = torch.rand(1) * np.pi/3 + torch.tensor(np.pi/6)
+                fovyangle = torch.rand(1) * np.pi / 3 + torch.tensor(np.pi / 6)
                 camera_projection = kal.render.camera.generate_perspective_projection(fovyangle).to(device)
             else:
                 camera_projection = self.camera_projection
-            face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(
-                mesh.vertices.to(device), mesh.faces.to(device), camera_projection,
-                camera_transform=camera_transform)
-            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(
-                self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1],
-                face_vertices_image, face_attributes, face_normals[:, :, -1])
+            face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(mesh.vertices.to(device),
+                                                                                                       mesh.faces.to(device),
+                                                                                                       camera_projection,
+                                                                                                       camera_transform=camera_transform)
+            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1], face_vertices_image, face_attributes,
+                                                                                     face_normals[:, :, -1])
             masks.append(soft_mask)
 
             # Debugging: color where soft mask is 1
@@ -504,10 +489,23 @@ class Renderer():
         else:
             return images
 
+
 if __name__ == '__main__':
-    mesh = Mesh('sample.obj')
-    mesh.set_image_texture('sample_texture.png')
+    import torchvision
+    mesh = Mesh('scene0158_02')
+    # mesh.set_image_texture('sample_texture.png')
     renderer = Renderer()
-    # renderer.render_uniform_views(mesh,show=True,texture=True)
-    mesh = mesh.divide()
-    renderer.render_uniform_views(mesh, show=True, texture=True)
+    rendered_images, elev, azim = renderer.render_center_out_views(mesh,
+                                                                   num_views=4,
+                                                                   lighting=True,
+                                                                   show=False,
+                                                                   center_azim=0.,
+                                                                   center_elev=0.,
+                                                                   std=4,
+                                                                   return_views=True,
+                                                                   background=torch.tensor([0.5, 0.5, 0.5]).to(device),
+                                                                   rand_background=True,
+                                                                   rand_focal=False)
+    torchvision.utils.save_image(rendered_images, 'test1.png')
+    # mesh = mesh.divide()
+    # renderer.render_uniform_views(mesh, show=True, texture=True)

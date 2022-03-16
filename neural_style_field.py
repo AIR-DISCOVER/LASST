@@ -29,7 +29,7 @@ class ProgressiveEncoding(nn.Module):
 class NeuralStyleField(nn.Module):
     # Same base then split into two separate modules 
     def __init__(self, sigma, depth, width, encoding, colordepth=2, normdepth=2, normratio=0.1, clamp=None,
-                 normclamp=None,niter=6000, input_dim=3, progressive_encoding=True, exclude=0):
+                 normclamp=None,niter=6000, input_dim=3, progressive_encoding=True):
         super(NeuralStyleField, self).__init__()
         self.pe = ProgressiveEncoding(mapping_size=width, T=niter, d=input_dim)
         self.clamp = clamp
@@ -37,7 +37,7 @@ class NeuralStyleField(nn.Module):
         self.normratio = normratio
         layers = []
         if encoding == 'gaussian':
-            layers.append(FourierFeatureTransform(input_dim, width, sigma, exclude))
+            layers.append(FourierFeatureTransform(input_dim, width, sigma))
             if progressive_encoding:
                 layers.append(self.pe)
             layers.append(nn.Linear(width * 2 + input_dim, width))
@@ -86,11 +86,11 @@ class NeuralStyleField(nn.Module):
             displ = layer(displ)
 
         if self.clamp == "tanh":
-            colors = F.tanh(colors) / 2
+            colors = torch.tanh(colors) / 2
         elif self.clamp == "clamp":
             colors = torch.clamp(colors, 0, 1)
         if self.normclamp == "tanh":
-            displ = F.tanh(displ) * self.normratio
+            displ = torch.tanh(displ) * self.normratio
         elif self.normclamp == "clamp":
             displ = torch.clamp(displ, -self.normratio, self.normratio)
 

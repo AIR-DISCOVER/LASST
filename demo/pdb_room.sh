@@ -26,13 +26,21 @@
         # --output_dir results/demo/comparison/scene0422_00/init \
         # --prompt "chocolate wall, ocean floor, glass table, steel cabinet, leather chair" \
         # --label 1 2 7 3 5 \
+        # --obj_path scene0418_02 \
+        # --output_dir results/demo/comparison/scene0418_02/init \
+        # --prompt "icy wall, ocean floor, wooden chair, water curtain, steel nightstand" \
+        # --label 1 2 5 16 32 \
+        # --obj_path scene0416_00 \
+        # --output_dir results/demo/comparison/scene0416_00/init \
+        # --prompt "wooden wall, wooden floor, wooden desk, wooden chair, wooden bed, wooden cabinet" \
+        # --label 1 2 14 5 4 3 \
 
-CUDA_VISIBLE_DEVICES=2 python sem_seg_main.py \
+CUDA_VISIBLE_DEVICES=0 python -m pdb sem_seg_main.py \
         --run branch \
-        --obj_path scene0422_00 \
-        --output_dir results/demo/comparison/scene0422_00/init \
-        --prompt "icy wall, ocean floor, wooden chair, water curtain, " \
-        --label 1 2 5 16 \
+        --obj_path scene0001_00 \
+        --output_dir results/demo/comparison/scene0001_00/init \
+        --prompt "snow wall, carpeted floor, steel cabinet, evening dress" \
+        --label 1 2 3 21 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \

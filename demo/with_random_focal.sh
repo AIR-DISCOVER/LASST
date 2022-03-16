@@ -1,10 +1,10 @@
 # with_random_focal
-CUDA_VISIBLE_DEVICES=2 python sem_seg_main.py \
+CUDA_VISIBLE_DEVICES=1 python sem_seg_main.py \
         --run branch \
-        --obj_path scene0422_00 \
-        --output_dir results/demo/comparison/scene0422_00/with_random_focal \
-        --prompt "chocolate wall, ocean floor, glass table, steel cabinet, leather chair" \
-        --label 1 2 7 3 5 \
+        --obj_path scene0413_00 \
+        --output_dir results/demo/comparison/scene0413_00/with_random_focal \
+        --prompt "snow wall, carpeted floor, steel cabinet, evening dress" \
+        --label 1 2 3 21 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \
