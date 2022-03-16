@@ -1,25 +1,27 @@
 import os
+import shutil
 
-base_path = "./results/batch/2022-03-09"
+base_path = "./results/batch/2022-03-15"
 # base_path = "./test"
 
 files = os.listdir(base_path)
 files.sort()
 for i, file in enumerate(files):
-    if i > 10:
-        break
     scene_path = os.path.join(base_path, file)
     print(f"scene_path: {scene_path}")
     scenes = os.listdir(scene_path)
     if not scenes:
         os.rmdir(scene_path)
+        print(f"\tremove: {scene_path}")
+
     for scene in scenes:
         exps_path = os.path.join(scene_path, scene)
         print(f"exps_path: {exps_path}")
         exps = os.listdir(exps_path)
         if not exps:
             os.rmdir(exps_path)
-            continue
+            print(f"\tremove: {exps_path}")
+
         for exp in exps:
             final_path = os.path.join(exps_path, exp)
             print(f"final_path: {final_path}")
@@ -29,5 +31,6 @@ for i, file in enumerate(files):
                 if ".obj" in obj_and_txt:
                     found_obj = 1
             if found_obj == 0:
-                os.rmdir(final_path)
+                shutil.rmtree(final_path)
+                print(f"\tremove: {final_path}")
 
