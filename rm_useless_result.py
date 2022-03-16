@@ -1,10 +1,13 @@
 import os
 
 base_path = "./results/batch/2022-03-09"
+# base_path = "./test"
 
 files = os.listdir(base_path)
-
-for file in files:
+files.sort()
+for i, file in enumerate(files):
+    if i > 10:
+        break
     scene_path = os.path.join(base_path, file)
     print(f"scene_path: {scene_path}")
     scenes = os.listdir(scene_path)

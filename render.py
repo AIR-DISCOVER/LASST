@@ -402,7 +402,10 @@ class Renderer():
                                 mask=False,
                                 return_views=False,
                                 rand_background=False,
+<<<<<<< HEAD
                                 fixed=True,
+=======
+>>>>>>> 2e0f8ee8180fe9f94121a5774991c3b4d82d9235
                                 rand_focal=False):
         """
             camera view from inside out
