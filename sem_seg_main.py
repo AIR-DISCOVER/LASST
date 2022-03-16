@@ -38,11 +38,11 @@ def run(args):
         torch.cuda.manual_seed_all(args.seed)
         random.seed(args.seed)
         np.random.seed(args.seed)
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = False
 
     ################# Loading #################
-    render = Renderer()
+    render = Renderer() # pi / 3
     init_mesh = Mesh(args.obj_path)
     # Bounding sphere normalizer
     # mesh.vertices is modified
@@ -148,8 +148,6 @@ def run(args):
             # Save prompt
             with open(os.path.join(args.dir, f"1prompt-{prompt}"), "w") as f:
                 f.write("")
-            with open(os.path.join(dir, 'prompt.txt'), "a") as f:
-                f.write(f"{prompt}\n")
 
         if args.image is not None:
             img = Image.open(args.image)
@@ -179,9 +177,9 @@ def run(args):
             rgb_loss = torch.tensor(0.).cuda()
             if args.rgb_loss_weight is not None:
                 if args.render_one_grad_one:
-                    rgb_loss += args.rgb_loss_weight * (output_mesh.colors.flatten() - mesh.colors.flatten()).mean()
+                    rgb_loss += args.rgb_loss_weight * (torch.abs(output_mesh.colors.flatten() - mesh.colors.flatten())).mean()
                 if args.render_all_grad_one:
-                    rgb_loss += args.rgb_loss_weight * (output_mesh.colors[ver_mask].flatten() - mesh.colors[ver_mask].flatten()).mean()
+                    rgb_loss += args.rgb_loss_weight * (torch.abs(output_mesh.colors[ver_mask].flatten() - mesh.colors[ver_mask].flatten())).mean()
 
             ###################### HSV Loss #####################
             if args.hsv_loss_weight is not None:
@@ -453,12 +451,6 @@ if __name__ == '__main__':
     parser.add_argument('--cropforward', action='store_true', help="Augmentation: if true, cropping ratio will be increasing with step instead of decreasing")
     # ==============================================================
 
-    # =================            Misc            =================
-    parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--regress', default=False, action="store_true", help="not ready")  # TODO
-    parser.add_argument('--report_step', default=100, type=int, help='The step interval between report calculation')
-    # ==============================================================
-
     # parser.add_argument('--overwrite', action='store_true') # TODO check behavior incase of overwrite
     # =================            Loss            =================
     parser.add_argument('--geoloss', action="store_true", help="Additional loss for displacement")
@@ -468,6 +460,13 @@ if __name__ == '__main__':
     parser.add_argument('--color_only', default=False, action='store_true', help='only change mesh color instead of changing both color and vertices\' place')
     parser.add_argument('--norm_loss_decay', type=float, default=1.0)
     parser.add_argument('--norm_loss_decay_freq', type=int, default=None)
+    # ==============================================================
+
+    # =================            Misc            =================
+    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--regress', default=False, action="store_true", help="not ready")  # TODO
+    parser.add_argument('--report_step', default=100, type=int, help='The step interval between report calculation')
+    parser.add_argument('--dry_run', action="store_true", help="dry run")
     # ==============================================================
 
     args = parser.parse_args()
@@ -483,7 +482,8 @@ if __name__ == '__main__':
     with open(Path(args.output_dir) / f'{idx}' / 'config.json', 'w') as f:
         json.dump(vars(args), f, indent=4)
 
-    run(args)
+    if not args.dry_run:
+        run(args)
 
 # For comparison: 10*scenes
 # 1. w/ w/o HSV regularization

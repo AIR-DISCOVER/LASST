@@ -25,7 +25,8 @@ python sem_seg_main.py \
         --color_only \
 \
         --hsv_loss_weight 10 \
-        --report_step 10
+        --report_step 10 \
+        --dry_run
         
         
         # --clipavg \
