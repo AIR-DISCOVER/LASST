@@ -71,7 +71,7 @@ def run(args):
             mesh.colors = torch.full(size=(mesh.colors.shape[0], 3), fill_value=0.5, device=device)
             mesh.face_attributes = torch.full(size=(mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
 
-        render_args = [render.find_appropriate_view(mesh, args.view_min, args.view_max) for i in range(args.n_views)]
+        render_args = [render.find_appropriate_view(mesh, args.view_min, args.view_max) for _ in range(args.n_views)]
 
         losses = []
 
@@ -215,6 +215,7 @@ def run(args):
                 sv_stat_loss += (s1.std() - s2.std()).abs()
                 sv_stat_loss += (v1.std() - v2.std()).abs()
                 sv_stat_loss /= 4
+                sv_stat_loss *= args.sv_stat_loss_weight
             if args.hsv_stat_loss_weight is not None:
                 h1_vx = torch.cos(2 * np.pi * h1)
                 h1_vy = torch.sin(2 * np.pi * h1)
@@ -245,7 +246,8 @@ def run(args):
                 return_views=True,
                 background=torch.tensor(args.background).to(device),
                 rand_background=args.rand_background,
-                fixed=True,
+                fixed=args.fixed,
+                fixed_all=args.fixed_all,
             )
 
             text_loss = torch.tensor([0.]).cuda()
@@ -488,6 +490,8 @@ if __name__ == '__main__':
     parser.add_argument('--frontview_azim_std', type=float, default=8, help="Renderer: frontview standard deviation")
     parser.add_argument('--view_min', type=float, default=0.6, help="Renderer: ")
     parser.add_argument('--view_max', type=float, default=0.9, help="Renderer: ")
+    parser.add_argument('--fixed', action='store_true', default=False, help="Renderer: ")
+    parser.add_argument('--fixed_all', action='store_true', default=False, help="Renderer: ")
     parser.add_argument('--show', action='store_true', help="Renderer: show with matplotlib when rendering")
     parser.add_argument('--background', nargs=3, type=float, default=None, help='Renderer: base color of background')
     parser.add_argument('--rand_background', default=False, action='store_true', help='Renderer: using randomly point-wise distorted colors as background')

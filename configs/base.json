@@ -74,6 +74,6 @@
     "norm_loss_decay_freq": null,
     "seed": 42,
     "regress": false,
-    "report_step": 100,
+    "report_step": 20,
     "dry_run": false
 }

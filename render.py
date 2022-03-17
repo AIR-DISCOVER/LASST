@@ -396,7 +396,7 @@ class Renderer():
         while True:
             elev = torch.rand(1) * np.pi
             azim = torch.rand(1) * 2 * np.pi
-            fov = torch.rand(1) * 2 * np.pi / 3 + np.pi / 6
+            fov = torch.rand(1) * np.pi
             camera_transform = get_camera_from_inside_out(elev, azim, r=1.0).to(device)
             camera_projection = kal.render.camera.generate_perspective_projection(fov).to(device)
             face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(
@@ -416,7 +416,7 @@ class Renderer():
             image_features, mask = image_features
             mask = mask.squeeze(-1)
             soft_mask = mask == 0
-            ratio = soft_mask.sum() / (soft_mask.shape[0] * soft_mask.shape[1] * soft_mask.shape[2])
+            ratio = 1 - soft_mask.sum() / (224 * 224)
             if ratio > lower and ratio < upper:
                 break
         return None, elev, azim, fov
@@ -433,6 +433,7 @@ class Renderer():
                                 return_views=False,
                                 rand_background=False,
                                 fixed=True,
+                                fixed_all=True,
                                 render_args=None):
         """
             camera view from inside out
@@ -449,14 +450,15 @@ class Renderer():
         else:
             face_attributes = mesh.face_attributes
         for i in range(num_views):
-            if i == 0 and fixed:
+            if (i == 0 and fixed) or fixed_all:
                 elev = render_args[i][1]
                 azim = render_args[i][2]
                 fov = render_args[i][3]
             else:
                 elev = (torch.randn(1) * 2 - 1) * np.pi / elev_std + render_args[i][1]
                 azim = (torch.randn(1) * 2 - 1) * np.pi / azim_std + render_args[i][2]
-                fov = render_args[i][3] * (torch.rand(1) * 0.2 + 9)
+                # fov = render_args[i][3] * 1
+                fov = render_args[i][3] * 1 / (0.95 + torch.rand(1) * 0.1)
 
             camera_transform = get_camera_from_inside_out(elev, azim, r=1.0).to(device)
             camera_projection = kal.render.camera.generate_perspective_projection(fov).to(device)

@@ -10,12 +10,12 @@ python sem_seg_main.py \
         --lr_decay 0.9 \
         --n_iter 1000 \
 \
-        --frontview_elev_std 12 \
-        --frontview_azim_std 6 \
+        --frontview_elev_std 24 \
+        --frontview_azim_std 12 \
         --background 0.5 0.5 0.5 \
-        --rand_background \
         --with_prior_color \
         --render_one_grad_one \
+        --fixed \
 \
         --n_normaugs 4 \
         --n_augs 1 \
@@ -30,6 +30,8 @@ python sem_seg_main.py \
         --sv_stat_loss_weight 0.1 \
         --report_step 10 
         
+        # --fixed_all \
+        # --rand_background \
         # --hsv_stat_loss_weight 0.5 \
         # --hsv_loss_weight 0.01 \
         
