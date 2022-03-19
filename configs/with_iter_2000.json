@@ -1,5 +1,5 @@
 {
-    "name": "base",
+    "name": "with_iter_2000",
     "obj_path": "scene0158_02",
     "label": [
         1
@@ -29,7 +29,7 @@
     "decay": 0,
     "lr_decay": 0.9,
     "decay_step": 100,
-    "n_iter": 1000,
+    "n_iter": 2000,
     "lr_plateau": null,
     "retain_graph": false,
     "n_views": 8,

@@ -1,5 +1,5 @@
 {
-    "name": "base",
+    "name": "with_lighting",
     "obj_path": "scene0158_02",
     "label": [
         1
@@ -50,7 +50,7 @@
         0.5
     ],
     "rand_background": true,
-    "lighting": false,
+    "lighting": true,
     "rand_focal": false,
     "render_one_grad_one": true,
     "render_all_grad_one": false,

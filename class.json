@@ -169,7 +169,7 @@
         20,
         "floor mat",
         [
-            "bleu",
+            "blue",
             "red",
             "yellow",
             "green",
@@ -180,7 +180,7 @@
         21,
         "clothes",
         [
-            "bleu",
+            "blue",
             "red",
             "yellow",
             "green"
@@ -195,7 +195,7 @@
         23,
         "books",
         [
-            "bleu",
+            "blue",
             "red",
             "yellow",
             "green"
@@ -225,7 +225,7 @@
         27,
         "towel",
         [
-            "bleu",
+            "blue",
             "red",
             "yellow",
             "green",
@@ -236,7 +236,7 @@
         28,
         "shower curtain",
         [
-            "bleu",
+            "blue",
             "red",
             "yellow",
             "green",

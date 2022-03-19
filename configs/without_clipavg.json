@@ -1,5 +1,5 @@
 {
-    "name": "base",
+    "name": "without_clipavg",
     "obj_path": "scene0158_02",
     "label": [
         1
@@ -66,7 +66,7 @@
     "cropsteps": 1,
     "cropforward": false,
     "geoloss": false,
-    "clipavg": true,
+    "clipavg": false,
     "hsv_loss_weight": null,
     "sv_stat_loss_weight": 0.1,
     "hsv_stat_loss_weight": null,

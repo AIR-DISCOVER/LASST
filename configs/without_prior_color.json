@@ -1,5 +1,5 @@
 {
-    "name": "base",
+    "name": "without_prior_color",
     "obj_path": "scene0158_02",
     "label": [
         1
@@ -54,7 +54,7 @@
     "rand_focal": false,
     "render_one_grad_one": true,
     "render_all_grad_one": false,
-    "with_prior_color": true,
+    "with_prior_color": false,
     "input_normals": false,
     "only_z": false,
     "n_augs": 1,

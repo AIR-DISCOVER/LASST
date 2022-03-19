@@ -1,5 +1,5 @@
 {
-    "name": "base",
+    "name": "with_fix_all",
     "obj_path": "scene0158_02",
     "label": [
         1
@@ -42,7 +42,7 @@
     "view_min": 0.4,
     "view_max": 0.8,
     "fixed": true,
-    "fixed_all": false,
+    "fixed_all": true,
     "show": false,
     "background": [
         0.5,

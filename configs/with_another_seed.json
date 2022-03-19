@@ -1,5 +1,5 @@
 {
-    "name": "base",
+    "name": "with_another_seed",
     "obj_path": "scene0158_02",
     "label": [
         1
@@ -74,7 +74,7 @@
     "color_only": true,
     "norm_loss_decay": 1.0,
     "norm_loss_decay_freq": null,
-    "seed": 42,
+    "seed": 43,
     "regress": false,
     "report_step": 20,
     "dry_run": false

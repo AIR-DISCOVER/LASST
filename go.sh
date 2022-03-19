@@ -1,27 +1,29 @@
 python sem_seg_main.py \
 \
         --obj_path scene0431_00 \
-        --label 1 \
-        --prompt "wooden wall" \
-        --forbidden "human face" \
+        --label 2 \
+        --prompt "marble floor" \
+        --forbidden "human face,English alphabet,lighting" \
         --output_dir results/test/scene0158_02 \
 \
         --learning_rate 0.001 \
         --lr_decay 0.9 \
         --n_iter 1000 \
 \
-        --frontview_elev_std 24 \
-        --frontview_azim_std 12 \
+        --frontview_elev_std 0.05 \
+        --frontview_azim_std 0.3 \
         --background 0.5 0.5 0.5 \
         --with_prior_color \
         --render_one_grad_one \
-        --fixed \
 \
         --n_normaugs 4 \
         --n_augs 1 \
+        --n_views 8 \
         --mincrop 0.5 \
         --maxcrop 1.0 \
         --normmincrop 0.3 \
+        --view_min 0.4 \
+        --view_max 0.8 \
         --normmaxcrop 0.9 \
 \
         --color_only \
@@ -30,6 +32,7 @@ python sem_seg_main.py \
         --sv_stat_loss_weight 0.1 \
         --report_step 10 
         
+        # --image star.jpg \
         # --fixed_all \
         # --rand_background \
         # --hsv_stat_loss_weight 0.5 \

@@ -71,7 +71,14 @@ def run(args):
             mesh.colors = torch.full(size=(mesh.colors.shape[0], 3), fill_value=0.5, device=device)
             mesh.face_attributes = torch.full(size=(mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
 
-        render_args = [render.find_appropriate_view(mesh, args.view_min, args.view_max) for _ in range(args.n_views)]
+        render_args = [render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1 / (i // 2 + 1)) for i in range(args.n_views)]
+        fail = False
+        for i in render_args:
+            if i is None:
+                fail = True
+                break
+        if fail:
+            continue
 
         losses = []
 
@@ -179,8 +186,8 @@ def run(args):
                 pred_normal = pred_normal * (ver_mask.to(torch.long)).unsqueeze(dim=-1)
 
             output_mesh = mesh.clone()
-            output_mesh.face_attributes = mesh.face_attributes + kaolin.ops.mesh.index_vertices_by_faces(pred_rgb.unsqueeze(0), mesh.faces)
-            output_mesh.colors = mesh.colors + pred_rgb
+            output_mesh.face_attributes = torch.clamp(mesh.face_attributes + kaolin.ops.mesh.index_vertices_by_faces(pred_rgb.unsqueeze(0), mesh.faces), 0, 1)
+            output_mesh.colors = torch.clamp(mesh.colors + pred_rgb, 0, 1)
             if not args.color_only:
                 output_mesh.vertices = mesh.vertices + mesh.vertex_normals * pred_normal
             MeshNormalizer(output_mesh)()
@@ -451,7 +458,7 @@ if __name__ == '__main__':
     # =================      Input and Output      =================
     parser.add_argument('--obj_path', type=str, default='', help='Obj name w/o .obj suffix')
     parser.add_argument('--label', nargs='+', type=int, default=5, help='indices for semantic categories, joined by space')
-    parser.add_argument('--prompt', nargs="+", default='a pig with pants', help='text description for each category, joined by comma. Number of categories should comply with --label')
+    parser.add_argument('--prompt', nargs="+", default=None, help='text description for each category, joined by comma. Number of categories should comply with --label')
     parser.add_argument('--forbidden', nargs="+", default=None, help='text description for each category, joined by comma. Number of categories should comply with --label')
     parser.add_argument('--image', type=str, default=None)  # TODO
     parser.add_argument('--output_dir', type=str, default='round2/alpha5', help="Output directory")

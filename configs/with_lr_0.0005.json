@@ -1,5 +1,5 @@
 {
-    "name": "base",
+    "name": "with_lr_0.0005",
     "obj_path": "scene0158_02",
     "label": [
         1
@@ -25,7 +25,7 @@
     "exclude": 0,
     "splitnormloss": false,
     "splitcolorloss": false,
-    "learning_rate": 0.001,
+    "learning_rate": 0.0005,
     "decay": 0,
     "lr_decay": 0.9,
     "decay_step": 100,
