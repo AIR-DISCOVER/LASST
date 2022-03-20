@@ -7,7 +7,7 @@ from datetime import datetime
 from random import randint, random
 from pathlib import Path
 
-VERSION = 'm3'
+VERSION = 'm3.6'
 SCENE_LIST = os.listdir('/home/tb5zhh/data/full/train')
 
 
@@ -21,6 +21,7 @@ def main():
         valid_cate = [i for i in cates['deterministic']]
         valid_cate += [i for i in cates['random'] if random() > (1 - cates['possibility'])]
         scene_id = SCENE_LIST[randint(0, len(SCENE_LIST) - 1)].strip('.ply')
+        seed = randint(0, 65535)
         print(f"==============={scene_id}================")
         output_dir = f"results/batch/{date}/{scene_id}"
         Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -41,7 +42,7 @@ def main():
                 args.obj_path = scene_id
                 args.output_dir = output_dir
                 args.name = config[:-5]
-                args.seed = randint(0, 65535)
+                args.seed = seed
 
                 args.prompt = ','.join([f"{class_labels[i][2][prompt_idx[idx]]} {class_labels[i][1]}" for idx, i in enumerate(valid_cate)]).split(' ')
                 args.label = [class_labels[i][0] for i in valid_cate]

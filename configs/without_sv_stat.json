@@ -8,7 +8,9 @@
         "marble wall"
     ],
     "forbidden": [
-        "human face"
+        "human face",
+        "English alphabet",
+        "lighting"
     ],
     "image": null,
     "output_dir": "results/batch",
@@ -37,19 +39,19 @@
         0.0,
         0.0
     ],
-    "frontview_elev_std": 0.05,
-    "frontview_azim_std": 0.3,
-    "view_min": 0.4,
+    "frontview_elev_std": 0.01,
+    "frontview_azim_std": 0.1,
+    "view_min": 0.2,
     "view_max": 0.8,
-    "fixed": true,
+    "fixed": false,
     "fixed_all": false,
     "show": false,
     "background": [
-        0.5,
-        0.5,
-        0.5
+        0.1,
+        0.1,
+        0.1
     ],
-    "rand_background": true,
+    "rand_background": false,
     "lighting": false,
     "rand_focal": false,
     "render_one_grad_one": true,
@@ -60,8 +62,8 @@
     "n_augs": 1,
     "n_normaugs": 4,
     "maxcrop": 1.0,
-    "mincrop": 0.5,
-    "normmincrop": 0.3,
+    "mincrop": 0.75,
+    "normmincrop": 0.6,
     "normmaxcrop": 0.9,
     "cropsteps": 1,
     "cropforward": false,

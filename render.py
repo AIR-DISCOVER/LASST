@@ -399,7 +399,7 @@ class Renderer():
                 print(i)
             elev = torch.rand(1) * np.pi
             azim = torch.rand(1) * 2 * np.pi
-            fov = np.pi * 2 / 3 * (1 - i / length) * percent
+            fov = np.pi * 2 / 3 * torch.normal(1., np.pi / 12, (1,)) * percent
             camera_transform = get_camera_from_inside_out(elev, azim, r=1.0).to(device)
             camera_projection = kal.render.camera.generate_perspective_projection(fov).to(device)
             face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(

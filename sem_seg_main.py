@@ -70,13 +70,14 @@ def run(args):
         if not args.with_prior_color:
             mesh.colors = torch.full(size=(mesh.colors.shape[0], 3), fill_value=0.5, device=device)
             mesh.face_attributes = torch.full(size=(mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
-
-        render_args = [render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1 / (i // 2 + 1)) for i in range(args.n_views)]
+        render_args = []
         fail = False
-        for i in render_args:
-            if i is None:
+        for i in range(args.n_views):
+            result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1 / (i + 1))
+            if result is None:
                 fail = True
                 break
+            render_args.append(result)
         if fail:
             continue
 
@@ -153,7 +154,7 @@ def run(args):
             prompt = prompt.split(',')[label_order].strip()
             with torch.no_grad():
                 prompt_token = clip.tokenize([prompt]).to(device)
-                encoded_text = clip_model.encode_text(prompt_token)
+                encodedtext = clip_model.encode_text(prompt_token)
 
             # Save prompt
             with open(os.path.join(args.dir, f"1prompt-{prompt}"), "w") as f:
