@@ -7,7 +7,7 @@ from datetime import datetime
 from random import randint, random
 from pathlib import Path
 
-VERSION = 'm3.6'
+VERSION = 'm4'
 SCENE_LIST = os.listdir('/home/tb5zhh/data/full/train')
 
 

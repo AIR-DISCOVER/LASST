@@ -1,9 +1,9 @@
 python sem_seg_main.py \
 \
         --obj_path scene0431_00 \
-        --label 1 \
-        --prompt "wooden wall" \
-        --forbidden "human face,English alphabet,lighting" \
+        --label 3 \
+        --prompt "Van Gogh cabinet" \
+        --forbidden "human face,English alphabet,lighting,human" \
         --output_dir results/test/scene0158_02 \
 \
         --learning_rate 0.001 \

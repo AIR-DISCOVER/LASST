@@ -73,7 +73,7 @@ def run(args):
         render_args = []
         fail = False
         for i in range(args.n_views):
-            result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1 / (i + 1))
+            result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1)
             if result is None:
                 fail = True
                 break
@@ -154,7 +154,7 @@ def run(args):
             prompt = prompt.split(',')[label_order].strip()
             with torch.no_grad():
                 prompt_token = clip.tokenize([prompt]).to(device)
-                encodedtext = clip_model.encode_text(prompt_token)
+                encoded_text = clip_model.encode_text(prompt_token)
 
             # Save prompt
             with open(os.path.join(args.dir, f"1prompt-{prompt}"), "w") as f:

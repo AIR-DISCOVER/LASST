@@ -9,18 +9,18 @@ import kaolin.ops.mesh
 
 DEVICE = torch.device("cuda:0")
 from IPython import embed
-
+from local import FULL_PATH, FULL_MESH_PATH
 
 class Mesh():
     """Load Mesh from ply files (from full and full_mesh)"""
-    FULL_PATH = '/home/tb5zhh/data/full/train'
-    FULL_MESH_PATH = '/home/tb5zhh/data/full_mesh/train'
+    # FULL_PATH = '/home/tb5zhh/data/full/train'
+    # FULL_MESH_PATH = '/home/tb5zhh/data/full_mesh/train'
 
     def __init__(self, scan_id, color=torch.tensor([0.0, 0.0, 1.0]), setup=True) -> None:
         if not setup:
             return
-        full_ply_path = f"{self.FULL_PATH}/{scan_id}.ply"
-        full_mesh_ply_path = f"{self.FULL_MESH_PATH}/{scan_id}.ply"
+        full_ply_path = f"{FULL_PATH}/{scan_id}.ply"
+        full_mesh_ply_path = f"{FULL_MESH_PATH}/{scan_id}.ply"
 
         full_plydata = PlyData.read(full_ply_path)
         full_mesh_plydata = PlyData.read(full_mesh_ply_path)
