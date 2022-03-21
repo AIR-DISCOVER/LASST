@@ -73,7 +73,7 @@ def run(args):
         render_args = []
         fail = False
         for i in range(args.n_views):
-            result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1 / (i + 1))
+            result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1)
             if result is None:
                 fail = True
                 break

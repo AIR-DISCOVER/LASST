@@ -5,12 +5,13 @@
         # --output_dir results/test/scene0002_00/image_text_prompt/brick_floor_iter3000 \
 
 
-CUDA_VISIBLE_DEVICES=0 python sem_seg_main.py \
+CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
 \
-        --obj_path scene0002_00 \
-        --label 2 \
-        --prompt "brick floor" \
-        --output_dir results/augs_comp/scene0002_00/n_3_a_4 \
+        --obj_path scene0055_00 \
+        --label 2 14 4 \
+        --prompt "marble floor, wooden desk, steel bed" \
+        --output_dir results/augs_comp/scene0055_00/n_1_a_1 \
+        --forbidden "human face,English alphabet,lighting,human" \
 \
         --learning_rate 0.001 \
         --lr_decay 0.9 \
@@ -22,7 +23,7 @@ CUDA_VISIBLE_DEVICES=0 python sem_seg_main.py \
         --with_prior_color \
         --render_one_grad_one \
 \
-        --n_normaugs 4 \
+        --n_normaugs 1 \
         --n_augs 1 \
         --n_views 8 \
         --mincrop 0.75 \

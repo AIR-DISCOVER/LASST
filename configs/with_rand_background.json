@@ -51,7 +51,7 @@
         0.1,
         0.1
     ],
-    "rand_background": false,
+    "rand_background": true,
     "lighting": false,
     "rand_focal": false,
     "render_one_grad_one": true,
