@@ -21,8 +21,8 @@ from torchvision import transforms
 from convert import HSVLoss as HSV
 import json
 
-if __name__ == '__main__':
-    print('imported')
+# if __name__ == '__main__':
+#     print('imported')
 
 # 1. camera position
 # 2. H of HSV range
@@ -390,7 +390,7 @@ if __name__ == '__main__':
     # =================      Input and Output      =================
     parser.add_argument('--obj_path', type=str, default='', help='Obj name w/o .obj suffix')
     parser.add_argument('--label', nargs='+', type=int, default=5, help='indices for semantic categories, joined by space')
-    parser.add_argument('--prompt', nargs="+", default='a pig with pants', help='text description for each category, joined by comma. Number of categories should comply with --label')
+    parser.add_argument('--prompt', nargs="+", default=None, help='text description for each category, joined by comma. Number of categories should comply with --label')
     parser.add_argument('--image', type=str, default=None)  # TODO
     parser.add_argument('--output_dir', type=str, default='round2/alpha5', help="Output directory")
     # ==============================================================
