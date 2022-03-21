@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from utils import device
 import torch
 import numpy as np
+from IPython import embed
 
 
 class Renderer():
@@ -390,12 +391,47 @@ class Renderer():
         else:
             return images, masks
 
+    def find_appropriate_view(self, mesh, lower=0.6, upper=0.9, percent=1.):
+        face_attributes = [mesh.face_attributes, torch.ones((1, mesh.faces.shape[0], 3, 1), device='cuda')]
+        length = 10000
+        for i in range(length):
+            if i % 1000 == 0:
+                print(i)
+            elev = torch.rand(1) * np.pi
+            azim = torch.rand(1) * 2 * np.pi
+            fov = np.pi * 2 / 3 * torch.normal(1., np.pi / 12, (1,)) * percent
+            camera_transform = get_camera_from_inside_out(elev, azim, r=1.0).to(device)
+            camera_projection = kal.render.camera.generate_perspective_projection(fov).to(device)
+            face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(
+                mesh.vertices.to(device),
+                mesh.faces.to(device),
+                camera_projection,
+                camera_transform=camera_transform,
+            )
+            image_features, _, _ = kal.render.mesh.dibr_rasterization(
+                self.dim[1],
+                self.dim[0],
+                face_vertices_camera[:, :, :, -1],
+                face_vertices_image,
+                face_attributes,
+                face_normals[:, :, -1],
+            )
+            image_features, mask = image_features
+            mask = mask.squeeze(-1)
+            soft_mask = mask == 0
+            ratio = 1 - soft_mask.sum() / (224 * 224)
+            if ratio > lower and ratio < upper:
+                break
+        if i >= length - 1:
+            print('fail')
+            return None
+        return None, elev, azim, fov
+
     def render_center_out_views(self,
                                 mesh,
                                 num_views=8,
-                                std=8,
-                                center_elev=0,
-                                center_azim=0,
+                                elev_std=12,
+                                azim_std=6,
                                 show=False,
                                 lighting=True,
                                 background=None,
@@ -403,17 +439,14 @@ class Renderer():
                                 return_views=False,
                                 rand_background=False,
                                 fixed=True,
-                                rand_focal=False):
+                                fixed_all=True,
+                                render_args=None):
         """
             camera view from inside out
         """
         faces = mesh.faces
         n_faces = faces.shape[0]
 
-        #elev = torch.cat((torch.tensor([center_elev]), torch.randn(num_views - 1) * np.pi / std + center_elev))
-        #elev = torch.cat((torch.tensor([center_elev]), torch.randn(num_views - 1) * (np.pi / 2) / std + center_elev))
-        elev = torch.tensor([center_elev * np.pi for i in range(num_views)])
-        azim = torch.cat((torch.tensor([center_azim]), torch.randn(num_views - 1) * 2 * np.pi / std + center_azim))
         images = []
         masks = []
         rgb_mask = []
@@ -422,30 +455,39 @@ class Renderer():
             face_attributes = [mesh.face_attributes, torch.ones((1, n_faces, 3, 1), device='cuda')]
         else:
             face_attributes = mesh.face_attributes
-
         for i in range(num_views):
-            # Fixme: get camera from inside(center/sparase area) out
-            camera_transform = get_camera_from_inside_out(elev[i], azim[i], r=1.0).to(device)
-            if rand_focal:
-                fovyangle = torch.rand(1) * np.pi / 3 + torch.tensor(np.pi / 6)
-                camera_projection = kal.render.camera.generate_perspective_projection(fovyangle).to(device)
+            if fixed or fixed_all:
+                elev = render_args[i][1]
+                azim = render_args[i][2]
+                fov = render_args[i][3]
             else:
-                camera_projection = self.camera_projection
+                elev = torch.clamp(torch.normal(mean=render_args[i][1], std=elev_std * np.pi), 0, np.pi)
+                azim = torch.clamp(torch.normal(mean=render_args[i][2], std=azim_std * np.pi), 0, 2 * np.pi)
+                fov = torch.clamp(render_args[i][3] * 1 / torch.normal(mean=1, std=0.01, size=(1,)), 0, np.pi * 2 / 3)
+
+            camera_transform = get_camera_from_inside_out(elev, azim, r=1.0).to(device)
+            camera_projection = kal.render.camera.generate_perspective_projection(fov).to(device)
+
             face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(mesh.vertices.to(device),
                                                                                                        mesh.faces.to(device),
                                                                                                        camera_projection,
                                                                                                        camera_transform=camera_transform)
-            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(self.dim[1], self.dim[0], face_vertices_camera[:, :, :, -1], face_vertices_image, face_attributes,
-                                                                                     face_normals[:, :, -1])
+            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(
+                self.dim[1],
+                self.dim[0],
+                face_vertices_camera[:, :, :, -1],
+                face_vertices_image,
+                face_attributes,
+                face_normals[:, :, -1],
+            )
+            if background is not None:
+                image_features, mask = image_features
+
             masks.append(soft_mask)
 
-            # Debugging: color where soft mask is 1
             tmp_rgb = torch.ones((224, 224, 3))
             tmp_rgb[torch.where(soft_mask.squeeze() == 1)] = torch.tensor([1, 0, 0]).float()
             rgb_mask.append(tmp_rgb)
-
-            if background is not None:
-                image_features, mask = image_features
 
             image = torch.clamp(image_features, 0.0, 1.0)
 
@@ -465,6 +507,7 @@ class Renderer():
                 else:
                     background_mask[torch.where(mask == 0)] = background
                 image = torch.clamp(image + background_mask, 0., 1.)
+
             images.append(image)
 
         images = torch.cat(images, dim=0).permute(0, 3, 1, 2)

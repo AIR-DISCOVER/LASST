@@ -20,6 +20,7 @@ from pathlib import Path
 from torchvision import transforms
 from convert import HSVLoss as HSV
 import json
+from IPython import embed
 
 # if __name__ == '__main__':
 #     print('imported')
@@ -42,7 +43,7 @@ def run(args):
         torch.backends.cudnn.deterministic = False
 
     ################# Loading #################
-    render = Renderer() # pi / 3
+    render = Renderer()  # pi / 3
     init_mesh = Mesh(args.obj_path)
     # Bounding sphere normalizer
     # mesh.vertices is modified
@@ -69,6 +70,16 @@ def run(args):
         if not args.with_prior_color:
             mesh.colors = torch.full(size=(mesh.colors.shape[0], 3), fill_value=0.5, device=device)
             mesh.face_attributes = torch.full(size=(mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
+        render_args = []
+        fail = False
+        for i in range(args.n_views):
+            result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1 / (i + 1))
+            if result is None:
+                fail = True
+                break
+            render_args.append(result)
+        if fail:
+            continue
 
         losses = []
 
@@ -148,6 +159,16 @@ def run(args):
             # Save prompt
             with open(os.path.join(args.dir, f"1prompt-{prompt}"), "w") as f:
                 f.write("")
+        if args.forbidden is not None:
+            forbidden = ' '.join(args.forbidden)
+            forbidden = [i.strip() for i in forbidden.split(',')]
+            with torch.no_grad():
+                forbidden_token = clip.tokenize(forbidden).to(device)
+                encoded_forbidden = clip_model.encode_text(forbidden_token)
+
+            # Save prompt
+            with open(os.path.join(args.dir, f"2forbidden-{forbidden}"), "w") as f:
+                f.write("")
 
         if args.image is not None:
             img = Image.open(args.image)
@@ -166,15 +187,17 @@ def run(args):
                 pred_normal = pred_normal * (ver_mask.to(torch.long)).unsqueeze(dim=-1)
 
             output_mesh = mesh.clone()
-            output_mesh.face_attributes = mesh.face_attributes + kaolin.ops.mesh.index_vertices_by_faces(pred_rgb.unsqueeze(0), mesh.faces)
-            output_mesh.colors = mesh.colors + pred_rgb
+            output_mesh.face_attributes = torch.clamp(mesh.face_attributes + kaolin.ops.mesh.index_vertices_by_faces(pred_rgb.unsqueeze(0), mesh.faces), 0, 1)
+            output_mesh.colors = torch.clamp(mesh.colors + pred_rgb, 0, 1)
             if not args.color_only:
                 output_mesh.vertices = mesh.vertices + mesh.vertex_normals * pred_normal
             MeshNormalizer(output_mesh)()
 
-            loss = torch.tensor(0.).cuda()
-            hsv_loss = torch.tensor(0.).cuda()
-            rgb_loss = torch.tensor(0.).cuda()
+            loss = torch.tensor([0.]).cuda()
+            hsv_loss = torch.tensor([0.]).cuda()
+            hsv_stat_loss = torch.tensor([0.]).cuda()
+            sv_stat_loss = torch.tensor([0.]).cuda()
+            rgb_loss = torch.tensor([0.]).cuda()
             if args.rgb_loss_weight is not None:
                 if args.render_one_grad_one:
                     rgb_loss += args.rgb_loss_weight * (torch.abs(output_mesh.colors.flatten() - mesh.colors.flatten())).mean()
@@ -182,17 +205,34 @@ def run(args):
                     rgb_loss += args.rgb_loss_weight * (torch.abs(output_mesh.colors[ver_mask].flatten() - mesh.colors[ver_mask].flatten())).mean()
 
             ###################### HSV Loss #####################
-            if args.hsv_loss_weight is not None:
-                if args.render_one_grad_one:
-                    h1, s1, v1 = HSV().get_hsv(output_mesh.colors.unsqueeze(-1).unsqueeze(-1))
-                    h2, s2, v2 = HSV().get_hsv(mesh.colors.unsqueeze(-1).unsqueeze(-1))
-                    # h3, s3, v3 = HSV().get_hsv(init_mesh.colors.unsqueeze(-1).unsqueeze(-1))  # TODO
-                if args.render_all_grad_one:
-                    h1, s1, v1 = HSV().get_hsv(output_mesh.colors[ver_mask].unsqueeze(-1).unsqueeze(-1))
-                    h2, s2, v2 = HSV().get_hsv(mesh.colors[ver_mask].unsqueeze(-1).unsqueeze(-1))
-                    # h3, s3, v3 = HSV().get_hsv(init_mesh.colors[ver_mask].unsqueeze(-1).unsqueeze(-1))  # TODO
+            if args.render_one_grad_one:
+                h1, s1, v1 = HSV().get_hsv(output_mesh.colors.unsqueeze(-1).unsqueeze(-1))
+                h2, s2, v2 = HSV().get_hsv(mesh.colors.unsqueeze(-1).unsqueeze(-1))
+                # h3, s3, v3 = HSV().get_hsv(init_mesh.colors.unsqueeze(-1).unsqueeze(-1))  # TODO
+            if args.render_all_grad_one:
+                h1, s1, v1 = HSV().get_hsv(output_mesh.colors[ver_mask].unsqueeze(-1).unsqueeze(-1))
+                h2, s2, v2 = HSV().get_hsv(mesh.colors[ver_mask].unsqueeze(-1).unsqueeze(-1))
+                # h3, s3, v3 = HSV().get_hsv(init_mesh.colors[ver_mask].unsqueeze(-1).unsqueeze(-1))  # TODO
 
+            if args.hsv_loss_weight is not None:
                 hsv_loss += args.hsv_loss_weight * (torch.min((h1 - h2).abs(), 1 - ((h1 - h2).abs())).mean() + (s1 - s2).abs().mean() + (v1 - v2).abs().mean()) / 3
+
+            if args.sv_stat_loss_weight is not None:
+                sv_stat_loss += (s1.mean() - s2.mean()).abs()
+                sv_stat_loss += (v1.mean() - v2.mean()).abs()
+                sv_stat_loss += (s1.std() - s2.std()).abs()
+                sv_stat_loss += (v1.std() - v2.std()).abs()
+                sv_stat_loss /= 4
+                sv_stat_loss *= args.sv_stat_loss_weight
+            if args.hsv_stat_loss_weight is not None:
+                h1_vx = torch.cos(2 * np.pi * h1)
+                h1_vy = torch.sin(2 * np.pi * h1)
+                h1_v = torch.stack((h1_vx, h1_vy), -1)
+                h2_vx = torch.cos(2 * np.pi * h2)
+                h2_vy = torch.sin(2 * np.pi * h2)
+                h2_v = torch.stack((h2_vx, h2_vy), -1)
+                diff = (h1_v - h2_v).squeeze().mean(dim=0)
+                hsv_stat_loss += args.hsv_stat_loss_weight * torch.linalg.norm(diff).mean()
                 # hsv_loss += 0.5 * torch.min((h1.mean() - h2.mean()).abs(), 1 - ((h1.mean() - h2.mean()).abs()))
                 # hsv_loss += 0.5 * (s1.mean() - s2.mean()).abs()
                 # hsv_loss += 0.5 * (v1.mean() - v2.mean()).abs()
@@ -203,20 +243,25 @@ def run(args):
 
             ###################### Render Loss #########################
             # Render output result, use only mesh.vertices, mesh.faces, mesh.face_attributes
-            rendered_images, elev, azim = render.render_center_out_views(output_mesh,
-                                                                         num_views=args.n_views,
-                                                                         lighting=args.lighting,
-                                                                         show=args.show,
-                                                                         center_azim=args.frontview_center[0],
-                                                                         center_elev=args.frontview_center[1],
-                                                                         std=args.frontview_std,
-                                                                         return_views=True,
-                                                                         background=torch.tensor(args.background).to(device),
-                                                                         rand_background=args.rand_background,
-                                                                         rand_focal=args.rand_focal)
+            rendered_images, elev, azim = render.render_center_out_views(
+                output_mesh,
+                num_views=args.n_views,
+                lighting=args.lighting,
+                show=args.show,
+                render_args=render_args,
+                elev_std=args.frontview_elev_std,
+                azim_std=args.frontview_azim_std,
+                return_views=True,
+                background=torch.tensor(args.background).to(device),
+                rand_background=args.rand_background,
+                fixed=args.fixed,
+                fixed_all=args.fixed_all,
+            )
 
-            text_loss = torch.tensor(0.).cuda()
-            image_loss = torch.tensor(0.).cuda()
+            text_loss = torch.tensor([0.]).cuda()
+            image_loss = torch.tensor([0.]).cuda()
+            forbidden_loss = torch.tensor([0.]).cuda()
+
             if args.n_augs == 0:
                 clip_image = clip_transform(rendered_images)
                 encoded_renders = clip_model.encode_image(clip_image)
@@ -235,7 +280,7 @@ def run(args):
                 for _ in range(args.n_augs):
                     augmented_image = augment_transform(rendered_images)
                     encoded_renders = clip_model.encode_image(augmented_image)
-                    if args.prompt:
+                    if args.prompt is not None:
                         if args.clipavg:
                             if encoded_text.shape[0] > 1:
                                 text_loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0), torch.mean(encoded_text, dim=0), dim=0)
@@ -244,7 +289,16 @@ def run(args):
                                 # embed()
                         else:
                             text_loss -= torch.mean(torch.cosine_similarity(encoded_renders, encoded_text))
-                    if args.image:
+                    if args.forbidden is not None:
+                        if args.clipavg:
+                            if encoded_forbidden.shape[0] > 1:
+                                forbidden_loss += torch.cosine_similarity(torch.mean(encoded_renders, dim=0), torch.mean(encoded_forbidden, dim=0), dim=0) - 1
+                            else:
+                                forbidden_loss += torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True), encoded_forbidden) - 1
+                                # embed()
+                        else:
+                            forbidden_loss += torch.mean(torch.cosine_similarity(encoded_renders, encoded_forbidden)) - 1
+                    if args.image is not None:
                         if args.clipavg:
                             if encoded_image.shape[0] > 1:
                                 image_loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0), torch.mean(encoded_image, dim=0), dim=0)
@@ -252,10 +306,14 @@ def run(args):
                                 image_loss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True), encoded_image)
                         else:
                             image_loss -= torch.mean(torch.cosine_similarity(encoded_renders, encoded_image))
+                text_loss /= args.n_augs
+                image_loss /= args.n_augs
+                forbidden_loss /= args.n_augs
 
             # Normal augment transform
-            norm_text_loss = torch.tensor(0.).cuda()
-            norm_image_loss = torch.tensor(0.).cuda()
+            norm_text_loss = torch.tensor([0.]).cuda()
+            norm_image_loss = torch.tensor([0.]).cuda()
+            norm_forbidden_loss = torch.tensor([0.]).cuda()
             if args.n_normaugs > 0:
                 # loss = 0.0
                 for _ in range(args.n_normaugs):
@@ -269,6 +327,14 @@ def run(args):
                                 norm_text_loss -= norm_loss_weight * torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True), encoded_text)
                         else:
                             norm_text_loss -= norm_loss_weight * torch.mean(torch.cosine_similarity(encoded_renders, encoded_text))
+                    if args.forbidden:
+                        if args.clipavg:
+                            if encoded_forbidden.shape[0] > 1:
+                                norm_forbidden_loss += norm_loss_weight * (torch.cosine_similarity(torch.mean(encoded_renders, dim=0), torch.mean(encoded_forbidden, dim=0), dim=0) - 1)
+                            else:
+                                norm_forbidden_loss += norm_loss_weight * (torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True), encoded_forbidden) - 1)
+                        else:
+                            norm_forbidden_loss += norm_loss_weight * (torch.mean(torch.cosine_similarity(encoded_renders, encoded_forbidden)) - 1)
                     if args.image:
                         if args.clipavg:
                             if encoded_image.shape[0] > 1:
@@ -277,12 +343,9 @@ def run(args):
                                 norm_image_loss -= norm_loss_weight * torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True), encoded_image)
                         else:
                             norm_image_loss -= norm_loss_weight * torch.mean(torch.cosine_similarity(encoded_renders, encoded_image))
-            # if args.splitnormloss:
-            #     for param in mlp.mlp_normal.parameters():
-            #         param.requires_grad = False
-            # if args.splitcolorloss:
-            #     for param in mlp.mlp_rgb.parameters():
-            #         param.requires_grad = False
+                norm_text_loss /= args.n_normaugs
+                norm_image_loss /= args.n_normaugs
+                norm_forbidden_loss /= args.n_normaugs
 
             # Also run separate loss on the uncolored displacements
             if args.geoloss:
@@ -319,7 +382,7 @@ def run(args):
                     # if not args.no_prompt:
                     normloss.backward(retain_graph=args.retain_graph)
 
-            loss += hsv_loss + rgb_loss + image_loss + text_loss + norm_image_loss + norm_text_loss
+            loss += hsv_loss + hsv_stat_loss + sv_stat_loss + rgb_loss + image_loss + text_loss + forbidden_loss + norm_image_loss + norm_text_loss + norm_forbidden_loss
             loss.backward(retain_graph=args.retain_graph)
             optim.step()
             if args.regress:
@@ -349,13 +412,19 @@ def run(args):
                     norm_loss_weight *= args.norm_loss_decay
 
             if i % args.report_step == 0:
-                report_process(args.dir, i, loss, rendered_images, label, {
-                    'hsv_loss': hsv_loss,
-                    'image_loss': image_loss,
-                    'text_loss': text_loss,
-                    'norm_image_loss': norm_image_loss,
-                    'norm_text_loss': norm_text_loss
-                })
+                report_process(
+                    args.dir, i, loss, rendered_images, label, {
+                        'rgb_loss': rgb_loss,
+                        'hsv_loss': hsv_loss,
+                        'sv_stat_loss': sv_stat_loss,
+                        'hsv_stat_loss': hsv_stat_loss,
+                        'text_loss': text_loss,
+                        'image_loss': image_loss,
+                        'forbidden_loss': forbidden_loss,
+                        'norm_text_loss': norm_text_loss,
+                        'norm_image_loss': norm_image_loss,
+                        'norm_forbidden_loss': norm_forbidden_loss,
+                    })
 
         if args.render_one_grad_one:
             full_pred_rgb[ver_mask] = output_mesh.colors
@@ -391,6 +460,7 @@ if __name__ == '__main__':
     parser.add_argument('--obj_path', type=str, default='', help='Obj name w/o .obj suffix')
     parser.add_argument('--label', nargs='+', type=int, default=5, help='indices for semantic categories, joined by space')
     parser.add_argument('--prompt', nargs="+", default=None, help='text description for each category, joined by comma. Number of categories should comply with --label')
+    parser.add_argument('--forbidden', nargs="+", default=None, help='text description for each category, joined by comma. Number of categories should comply with --label')
     parser.add_argument('--image', type=str, default=None)  # TODO
     parser.add_argument('--output_dir', type=str, default='round2/alpha5', help="Output directory")
     # ==============================================================
@@ -424,7 +494,12 @@ if __name__ == '__main__':
     # =================           Renderer         =================
     parser.add_argument('--n_views', type=int, default=5, help="Renderer: Number of rendered views")
     parser.add_argument('--frontview_center', nargs=2, type=float, default=[0., 0.], help="Renderer: frontview center")
-    parser.add_argument('--frontview_std', type=float, default=8, help="Renderer: frontview standard deviation")
+    parser.add_argument('--frontview_elev_std', type=float, default=8, help="Renderer: frontview standard deviation")
+    parser.add_argument('--frontview_azim_std', type=float, default=8, help="Renderer: frontview standard deviation")
+    parser.add_argument('--view_min', type=float, default=0.6, help="Renderer: ")
+    parser.add_argument('--view_max', type=float, default=0.9, help="Renderer: ")
+    parser.add_argument('--fixed', action='store_true', default=False, help="Renderer: ")
+    parser.add_argument('--fixed_all', action='store_true', default=False, help="Renderer: ")
     parser.add_argument('--show', action='store_true', help="Renderer: show with matplotlib when rendering")
     parser.add_argument('--background', nargs=3, type=float, default=None, help='Renderer: base color of background')
     parser.add_argument('--rand_background', default=False, action='store_true', help='Renderer: using randomly point-wise distorted colors as background')
@@ -456,6 +531,8 @@ if __name__ == '__main__':
     parser.add_argument('--geoloss', action="store_true", help="Additional loss for displacement")
     parser.add_argument('--clipavg', action="store_true", default=False, help="view: calculate similarity after calculate mean value")
     parser.add_argument('--hsv_loss_weight', default=None, type=float, help='add hsv loss to the loss function')
+    parser.add_argument('--sv_stat_loss_weight', default=None, type=float, help='add hsv loss to the loss function')
+    parser.add_argument('--hsv_stat_loss_weight', default=None, type=float, help='add hsv loss to the loss function')
     parser.add_argument('--rgb_loss_weight', default=None, type=float, help='add rgb loss to the loss function')
     parser.add_argument('--color_only', default=False, action='store_true', help='only change mesh color instead of changing both color and vertices\' place')
     parser.add_argument('--norm_loss_decay', type=float, default=1.0)
@@ -478,7 +555,6 @@ if __name__ == '__main__':
     (Path(args.output_dir) / f'{idx}').mkdir(parents=True, exist_ok=False)
     args.dir = f"{args.output_dir}/{idx}"
 
-    objbase, _ = os.path.splitext(os.path.basename(args.obj_path))
     with open(Path(args.output_dir) / f'{idx}' / 'config.json', 'w') as f:
         json.dump(vars(args), f, indent=4)
 
