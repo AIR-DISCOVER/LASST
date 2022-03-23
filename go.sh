@@ -1,8 +1,8 @@
 python sem_seg_main.py \
 \
         --obj_path scene0431_00 \
-        --label 3 \
-        --prompt "Van Gogh cabinet" \
+        --label 1 2 3 \
+        --prompt "wooden wall,marble floor,leather cabinet" \
         --forbidden "human face,English alphabet,lighting,human" \
         --output_dir results/test/scene0158_02 \
 \

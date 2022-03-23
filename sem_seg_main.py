@@ -176,7 +176,7 @@ def run(args):
                 img = preprocess(img).to(device)
                 encoded_image = clip_model.encode_image(img.unsqueeze(0))
 
-        for i in tqdm(range(args.n_iter)):
+        for i in tqdm(range(args.n_iter), desc=f"{args.dir}-{prompt}"):
             optim.zero_grad()
 
             # only coordinates?
