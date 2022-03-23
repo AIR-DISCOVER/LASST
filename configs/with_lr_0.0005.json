@@ -1,19 +1,18 @@
 {
-    "name": "with_lr_0.0005",
-    "obj_path": "scene0158_02",
+    "obj_path": "scene0431_00",
     "label": [
-        1
+        1,
+        2,
+        3
     ],
     "prompt": [
-        "marble wall"
+        "wooden wall,marble floor,leather cabinet"
     ],
     "forbidden": [
-        "human face",
-        "English alphabet",
-        "lighting"
+        "human face,English alphabet,lighting,human"
     ],
     "image": null,
-    "output_dir": "results/batch",
+    "output_dir": "results/test/scene0158_02",
     "sigma": 5.0,
     "depth": 4,
     "width": 256,
@@ -27,14 +26,14 @@
     "exclude": 0,
     "splitnormloss": false,
     "splitcolorloss": false,
-    "learning_rate": 0.0005,
+    "learning_rate": 0.001,
     "decay": 0,
     "lr_decay": 0.9,
     "decay_step": 100,
     "n_iter": 1000,
     "lr_plateau": null,
     "retain_graph": false,
-    "n_views": 8,
+    "n_views": 4,
     "frontview_center": [
         0.0,
         0.0
@@ -54,13 +53,14 @@
     "rand_background": false,
     "lighting": false,
     "rand_focal": false,
-    "render_one_grad_one": true,
-    "render_all_grad_one": false,
+    "render_one_grad_one": false,
+    "render_all_grad_one": true,
+    "render_all_grad_all": false,
     "with_prior_color": true,
     "input_normals": false,
     "only_z": false,
     "n_augs": 1,
-    "n_normaugs": 4,
+    "n_normaugs": 1,
     "maxcrop": 1.0,
     "mincrop": 0.75,
     "normmincrop": 0.6,
@@ -78,6 +78,7 @@
     "norm_loss_decay_freq": null,
     "seed": 42,
     "regress": false,
-    "report_step": 20,
-    "dry_run": false
+    "report_step": 100,
+    "dry_run": false,
+    "dir": "results/test/scene0158_02/146"
 }
