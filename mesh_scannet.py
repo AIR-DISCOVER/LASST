@@ -43,7 +43,7 @@ class Mesh():
 
         self.texture_map = utils.get_texture_map_from_color(self, color)
         # self.face_attributes = utils.get_face_attributes_from_color(self, color)  # FIXME0
-        self.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(self.colors.unsqueeze(0), self.faces).squeeze()
+        self.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(self.colors.unsqueeze(0), self.faces).squeeze().unsqueeze(0)
 
     def standardize_mesh(self, inplace=False):
         mesh = self if inplace else copy.deepcopy(self)
@@ -107,7 +107,7 @@ class Mesh():
         mesh.faces = old_indice_to_new[mesh.faces].to(device)  # TODO check
         if normals:
             mesh.face_normals = self.face_normals[face_mask]
-        mesh.face_attributes = self.face_attributes[face_mask].unsqueeze(0)
+        mesh.face_attributes = self.face_attributes.squeeze()[face_mask].unsqueeze(0)
 
         return mesh
 

@@ -4,6 +4,7 @@ python sem_seg_main.py \
         --label 1 2 3 \
         --prompt "wooden wall,marble floor,leather cabinet" \
         --forbidden "human face,English alphabet,lighting,human" \
+        --output_dir results/test/scene0158_02 \
 \
         --learning_rate 0.001 \
         --lr_decay 0.9 \

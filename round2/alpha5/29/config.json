@@ -12,7 +12,7 @@
         "human face,English alphabet,lighting,human"
     ],
     "image": null,
-    "output_dir": "results/test/scene0158_02",
+    "output_dir": "round2/alpha5",
     "sigma": 5.0,
     "depth": 4,
     "width": 256,
@@ -80,5 +80,5 @@
     "regress": false,
     "report_step": 100,
     "dry_run": false,
-    "dir": "results/test/scene0158_02/146"
+    "dir": "round2/alpha5/29"
 }

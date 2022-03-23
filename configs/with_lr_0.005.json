@@ -26,7 +26,7 @@
     "exclude": 0,
     "splitnormloss": false,
     "splitcolorloss": false,
-    "learning_rate": 0.001,
+    "learning_rate": 0.005,
     "decay": 0,
     "lr_decay": 0.9,
     "decay_step": 100,

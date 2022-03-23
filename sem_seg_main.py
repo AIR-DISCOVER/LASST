@@ -69,6 +69,7 @@ def run(args):
             mesh = init_mesh.mask_mesh(ver_mask, face_mask, old_indice_to_new, new_indice_to_old)
         elif args.render_all_grad_one:
             mesh = init_mesh.clone()
+            masked_mesh = init_mesh.mask_mesh(ver_mask, face_mask, old_indice_to_new, new_indice_to_old)
         elif args.render_all_grad_all:
             mesh = init_mesh.clone()
 
@@ -78,7 +79,10 @@ def run(args):
         render_args = []
         fail = False
         for i in range(args.n_views):
-            result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1)
+            if args.render_all_grad_one:
+                result = render.find_appropriate_view(masked_mesh, args.view_min, args.view_max, percent=1)
+            else:
+                result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1)
             if result is None:
                 fail = True
                 break

@@ -42,8 +42,8 @@
     "frontview_azim_std": 0.1,
     "view_min": 0.2,
     "view_max": 0.8,
-    "fixed": false,
-    "fixed_all": false,
+    "fixed": true,
+    "fixed_all": true,
     "show": false,
     "background": [
         0.1,

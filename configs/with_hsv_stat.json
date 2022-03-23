@@ -71,7 +71,7 @@
     "clipavg": true,
     "hsv_loss_weight": null,
     "sv_stat_loss_weight": 0.1,
-    "hsv_stat_loss_weight": null,
+    "hsv_stat_loss_weight": 0.1,
     "rgb_loss_weight": null,
     "color_only": true,
     "norm_loss_decay": 1.0,
