@@ -67,6 +67,7 @@ def run(args):
 
         if args.render_one_grad_one:
             mesh = init_mesh.mask_mesh(ver_mask, face_mask, old_indice_to_new, new_indice_to_old)
+            MeshNormalizer(init_mesh)()
         elif args.render_all_grad_one:
             mesh = init_mesh.clone()
             masked_mesh = init_mesh.mask_mesh(ver_mask, face_mask, old_indice_to_new, new_indice_to_old)

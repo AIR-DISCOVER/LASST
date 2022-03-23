@@ -408,7 +408,7 @@ class Renderer():
                 camera_projection,
                 camera_transform=camera_transform,
             )
-            image_features, _, _ = kal.render.mesh.dibr_rasterization(
+            image_features, soft_mask, face_idx = kal.render.mesh.dibr_rasterization(
                 self.dim[1],
                 self.dim[0],
                 face_vertices_camera[:, :, :, -1],
@@ -416,10 +416,11 @@ class Renderer():
                 face_attributes,
                 face_normals[:, :, -1],
             )
-            image_features, mask = image_features
-            mask = mask.squeeze(-1)
-            soft_mask = mask == 0
-            ratio = 1 - soft_mask.sum() / (224 * 224)
+            # image_features, mask = image_features
+            # mask = mask.squeeze(-1)
+            # soft_mask = mask == 0
+            # ratio = 1 - soft_mask.sum() / (224 * 224)
+            ratio = torch.count_nonzero(face_idx[0] != -1) / (224*224)
             if ratio > lower and ratio < upper:
                 break
         if i >= length - 1:
@@ -464,6 +465,8 @@ class Renderer():
                 elev = torch.clamp(torch.normal(mean=render_args[i][1], std=elev_std * np.pi), 0, np.pi)
                 azim = torch.clamp(torch.normal(mean=render_args[i][2], std=azim_std * np.pi), 0, 2 * np.pi)
                 fov = torch.clamp(render_args[i][3] * 1 / torch.normal(mean=1, std=0.1, size=(1,)), 0, np.pi * 2 / 3)
+
+            fov = np.pi/2
 
             camera_transform = get_camera_from_inside_out(elev, azim, r=1.0).to(device)
             camera_projection = kal.render.camera.generate_perspective_projection(fov).to(device)
