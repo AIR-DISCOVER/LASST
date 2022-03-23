@@ -53,18 +53,23 @@ def run(args):
     full_pred_vertices = init_mesh.vertices.detach()
 
     for label_order, label in enumerate(args.label):
-        if not (init_mesh.labels == label).any():
-            print(f"label {label} is not in this mesh")
-            continue
+        if not args.render_all_grad_all:
+            if not (init_mesh.labels == label).any():
+                print(f"label {label} is not in this mesh")
+                continue
+            ver_mask, face_mask, old_indice_to_new, new_indice_to_old = init_mesh.get_mask(label)
 
         # Set up index mapping
-        ver_mask, face_mask, old_indice_to_new, new_indice_to_old = init_mesh.get_mask(label)
 
         # Create a full copy of initial mesh
-        assert not (args.render_one_grad_one and args.render_all_grad_one)
+        assert args.render_all_grad_one ^ args.render_all_grad_all ^ args.render_one_grad_one
+        assert not (args.render_all_grad_one and args.render_all_grad_all and args.render_one_grad_one)
+
         if args.render_one_grad_one:
             mesh = init_mesh.mask_mesh(ver_mask, face_mask, old_indice_to_new, new_indice_to_old)
-        else:
+        elif args.render_all_grad_one:
+            mesh = init_mesh.clone()
+        elif args.render_all_grad_all:
             mesh = init_mesh.clone()
 
         if not args.with_prior_color:
@@ -151,7 +156,9 @@ def run(args):
         assert args.prompt is not None or args.image is not None
         if args.prompt is not None:
             prompt = ' '.join(args.prompt)
-            prompt = prompt.split(',')[label_order].strip()
+            if not args.render_all_grad_all:
+                prompt = prompt.split(',')[label_order].strip()
+
             with torch.no_grad():
                 prompt_token = clip.tokenize([prompt]).to(device)
                 encoded_text = clip_model.encode_text(prompt_token)
@@ -199,13 +206,13 @@ def run(args):
             sv_stat_loss = torch.tensor([0.]).cuda()
             rgb_loss = torch.tensor([0.]).cuda()
             if args.rgb_loss_weight is not None:
-                if args.render_one_grad_one:
+                if args.render_one_grad_one or args.render_all_grad_all:
                     rgb_loss += args.rgb_loss_weight * (torch.abs(output_mesh.colors.flatten() - mesh.colors.flatten())).mean()
                 if args.render_all_grad_one:
                     rgb_loss += args.rgb_loss_weight * (torch.abs(output_mesh.colors[ver_mask].flatten() - mesh.colors[ver_mask].flatten())).mean()
 
             ###################### HSV Loss #####################
-            if args.render_one_grad_one:
+            if args.render_one_grad_one or args.render_all_grad_all:
                 h1, s1, v1 = HSV().get_hsv(output_mesh.colors.unsqueeze(-1).unsqueeze(-1))
                 h2, s2, v2 = HSV().get_hsv(mesh.colors.unsqueeze(-1).unsqueeze(-1))
                 # h3, s3, v3 = HSV().get_hsv(init_mesh.colors.unsqueeze(-1).unsqueeze(-1))  # TODO
@@ -434,8 +441,13 @@ def run(args):
             full_pred_rgb[ver_mask] = output_mesh.colors[ver_mask]
             if not args.color_only:
                 full_pred_vertices[ver_mask] = output_mesh.vertices[ver_mask]
-        else:
-            raise NotImplementedError
+        elif args.render_all_grad_all:
+            full_pred_rgb = output_mesh.colors
+            if not args.color_only:
+                full_pred_vertices = output_mesh.vertices
+        
+        if args.render_all_grad_all:
+            break
 
     # FixMe: input vertices should be fixed
     init_mesh.colors = full_pred_rgb
@@ -507,6 +519,7 @@ if __name__ == '__main__':
     parser.add_argument('--rand_focal', default=False, action='store_true', help='make carema focal lenth change randomly at each rendering')
     parser.add_argument('--render_one_grad_one', default=False, action='store_true', help='focus on at each rendering vertices/faces with specified label instead of full mesh')
     parser.add_argument('--render_all_grad_one', default=False, action='store_true', help='use full mesh to render, while only change vertices/faces with specified label')
+    parser.add_argument('--render_all_grad_all', default=False, action='store_true', help='use full mesh to render and change')
     parser.add_argument('--with_prior_color', default=False, action='store_true', help='render the mesh with its previous color instead of RGB(0.5, 0.5, 0.5)*255')
     # ==============================================================
 

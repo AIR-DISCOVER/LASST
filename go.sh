@@ -14,7 +14,7 @@ python sem_seg_main.py \
         --frontview_azim_std 0.1 \
         --background 0.1 0.1 0.1 \
         --with_prior_color \
-        --render_one_grad_one \
+        --render_all_grad_one \
 \
         --n_normaugs 4 \
         --n_augs 1 \
