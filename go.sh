@@ -1,11 +1,4 @@
-        # --obj_path scene0002_00 \
-        # --label 2 \
-        # --prompt "brick floor" \
-        # --image "./image_prompt/brick_floor.jpg" \
-        # --output_dir results/test/scene0002_00/image_text_prompt/brick_floor_iter3000 \
-
-
-CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
+python sem_seg_main.py \
 \
         --obj_path scene0431_00 \
         --label 1 2 3 \
@@ -24,7 +17,7 @@ CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
 \
         --n_normaugs 1 \
         --n_augs 1 \
-        --n_views 8 \
+        --n_views 4 \
         --mincrop 0.75 \
         --maxcrop 1.0 \
         --view_min 0.2 \
@@ -37,8 +30,9 @@ CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
 \
         --clipavg \
         --sv_stat_loss_weight 0.1 \
-        --report_step 10 
-        
+        --report_step 100 
+
+
         # --image star.jpg \
         # --fixed_all \
         # --rand_background \

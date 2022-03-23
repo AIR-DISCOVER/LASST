@@ -10,7 +10,7 @@ import kaolin.ops.mesh
 DEVICE = torch.device("cuda:0")
 from IPython import embed
 from local import FULL_PATH, FULL_MESH_PATH
-
+from tqdm import tqdm
 class Mesh():
     """Load Mesh from ply files (from full and full_mesh)"""
     # FULL_PATH = '/home/tb5zhh/data/full/train'
@@ -117,11 +117,7 @@ class Mesh():
 
         # FIXME
         # selecting faces whose vertices all have the required label
-        face_num = self.faces.shape[0]
-        face_mask = torch.ones([face_num]).eq(1).to(device)
-        for i in range(face_num):
-            face_mask[i] = ver_mask[self.faces[i]].all()  # or any() ?
-
+        face_mask = ver_mask[self.faces].all(dim=-1)
         # create mapping between indices
         old_indice_to_new = (-1 * torch.ones_like(ver_mask))
         old_indice_to_new[ver_mask] = torch.tensor((range((ver_mask == 1).sum()))).cuda()
