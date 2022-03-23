@@ -1,7 +1,7 @@
 import os
 import shutil
 
-base_path = "./results/batch/2022-03-15"
+base_path = "./results/"
 # base_path = "./test"
 
 files = os.listdir(base_path)

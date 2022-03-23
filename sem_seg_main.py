@@ -22,8 +22,8 @@ from convert import HSVLoss as HSV
 import json
 from IPython import embed
 
-if __name__ == '__main__':
-    print('imported')
+# if __name__ == '__main__':
+#     print('imported')
 
 # 1. camera position
 # 2. H of HSV range
