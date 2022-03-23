@@ -80,7 +80,7 @@ def run(args):
         fail = False
         for i in range(args.n_views):
             if args.render_all_grad_one:
-                result = render.find_appropriate_view(masked_mesh, args.view_min, args.view_max, percent=1)
+                result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1)
             else:
                 result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1)
             if result is None:
