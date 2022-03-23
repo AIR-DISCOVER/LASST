@@ -7,7 +7,6 @@ from datetime import datetime
 from random import randint, random
 from pathlib import Path
 
-VERSION = 'm5'
 SCENE_LIST = os.listdir('/home/tb5zhh/data/full/train')
 
 
@@ -15,7 +14,7 @@ def main():
     while True:
         with open('series') as f:
             lines = f.readlines()
-        date = lines[0].strip() + VERSION
+        date = lines[0].strip()
         with open('class.json') as f2, open('valid.json') as f3:
             class_labels = json.load(f2)
             cates = json.load(f3)
