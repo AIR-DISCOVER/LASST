@@ -9,41 +9,74 @@ import kaolin.ops.mesh
 
 DEVICE = torch.device("cuda:0")
 from IPython import embed
-from local import FULL_PATH, FULL_MESH_PATH
+from local import FULL_PATH, FULL_MESH_PATH, TEST_FULL_PATH, TEST_FULL_MESH_PATH
 from tqdm import tqdm
 class Mesh():
     """Load Mesh from ply files (from full and full_mesh)"""
     # FULL_PATH = '/home/tb5zhh/data/full/train'
     # FULL_MESH_PATH = '/home/tb5zhh/data/full_mesh/train'
 
-    def __init__(self, scan_id, color=torch.tensor([0.0, 0.0, 1.0]), setup=True) -> None:
+    def __init__(self, scan_id, pred_label_path=None, color=torch.tensor([0.0, 0.0, 1.0]), setup=True) -> None:
         if not setup:
             return
-        full_ply_path = f"{FULL_PATH}/{scan_id}.ply"
-        full_mesh_ply_path = f"{FULL_MESH_PATH}/{scan_id}.ply"
+        if pred_label_path is None:
+            assert int(scan_id.split("scene")[-1].split("_")[0]) < 707
+            full_ply_path = f"{FULL_PATH}/{scan_id}.ply"
+            full_mesh_ply_path = f"{FULL_MESH_PATH}/{scan_id}.ply"
 
-        full_plydata = PlyData.read(full_ply_path)
-        full_mesh_plydata = PlyData.read(full_mesh_ply_path)
+            full_plydata = PlyData.read(full_ply_path)
+            full_mesh_plydata = PlyData.read(full_mesh_ply_path)
 
-        meshes = []
-        for i in range(len(full_mesh_plydata['face'])):
-            meshes.append(full_mesh_plydata['face'][i][0])
-        self.faces: torch.Tensor = torch.as_tensor(np.stack(meshes)).to(DEVICE).to(torch.long)
+            meshes = []
+            for i in range(len(full_mesh_plydata['face'])):
+                meshes.append(full_mesh_plydata['face'][i][0])
+            self.faces: torch.Tensor = torch.as_tensor(np.stack(meshes)).to(DEVICE).to(torch.long)
 
-        self.labels: torch.Tensor = torch.as_tensor(np.asarray(full_plydata['vertex']['label'])).to(DEVICE)
-        self.colors: torch.Tensor = torch.as_tensor(np.stack((full_plydata['vertex']['red'] / 256, full_plydata['vertex']['green'] / 256, full_plydata['vertex']['blue'] / 256),
-                                                             axis=1)).to(DEVICE).to(dtype=torch.float)
-        self.vertices: torch.Tensor = torch.as_tensor(np.stack((full_mesh_plydata['vertex']['x'], full_mesh_plydata['vertex']['y'], full_mesh_plydata['vertex']['z']), axis=1)).to(DEVICE)
+            self.labels: torch.Tensor = torch.as_tensor(np.asarray(full_plydata['vertex']['label'])).to(DEVICE)
 
-        self.vertex_normals: torch.Tensor = None
-        self.face_normals: torch.Tensor = None
-        self.texture_map: torch.Tensor = None
-        self.face_attributes: torch.Tensor = None
-        self.face_uvs: torch.Tensor = None
+            self.colors: torch.Tensor = torch.as_tensor(np.stack((full_plydata['vertex']['red'] / 256, full_plydata['vertex']['green'] / 256, full_plydata['vertex']['blue'] / 256),
+                                                                axis=1)).to(DEVICE).to(dtype=torch.float)
+            self.vertices: torch.Tensor = torch.as_tensor(np.stack((full_mesh_plydata['vertex']['x'], full_mesh_plydata['vertex']['y'], full_mesh_plydata['vertex']['z']), axis=1)).to(DEVICE)
 
-        self.texture_map = utils.get_texture_map_from_color(self, color)
-        # self.face_attributes = utils.get_face_attributes_from_color(self, color)  # FIXME0
-        self.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(self.colors.unsqueeze(0), self.faces).squeeze().unsqueeze(0)
+            self.vertex_normals: torch.Tensor = None
+            self.face_normals: torch.Tensor = None
+            self.texture_map: torch.Tensor = None
+            self.face_attributes: torch.Tensor = None
+            self.face_uvs: torch.Tensor = None
+
+            self.texture_map = utils.get_texture_map_from_color(self, color)
+            # self.face_attributes = utils.get_face_attributes_from_color(self, color)  # FIXME0
+            self.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(self.colors.unsqueeze(0), self.faces).squeeze().unsqueeze(0)
+        else:
+            full_ply_path = f"{FULL_PATH}/{scan_id}.ply"
+            full_mesh_ply_path = f"{FULL_MESH_PATH}/{scan_id}.ply"
+
+            full_plydata = PlyData.read(full_ply_path)
+            full_mesh_plydata = PlyData.read(full_mesh_ply_path)
+
+            meshes = []
+            for i in range(len(full_mesh_plydata['face'])):
+                meshes.append(full_mesh_plydata['face'][i][0])
+            self.faces: torch.Tensor = torch.as_tensor(np.stack(meshes)).to(DEVICE).to(torch.long)
+
+            self.labels: torch.Tensor = torch.as_tensor(np.loadtxt(pred_label_path)).to(DEVICE)
+            
+
+
+            self.colors: torch.Tensor = torch.as_tensor(np.stack((full_plydata['vertex']['red'] / 256, full_plydata['vertex']['green'] / 256, full_plydata['vertex']['blue'] / 256),
+                                                                axis=1)).to(DEVICE).to(dtype=torch.float)
+            self.vertices: torch.Tensor = torch.as_tensor(np.stack((full_mesh_plydata['vertex']['x'], full_mesh_plydata['vertex']['y'], full_mesh_plydata['vertex']['z']), axis=1)).to(DEVICE)
+
+            self.vertex_normals: torch.Tensor = None
+            self.face_normals: torch.Tensor = None
+            self.texture_map: torch.Tensor = None
+            self.face_attributes: torch.Tensor = None
+            self.face_uvs: torch.Tensor = None
+
+            self.texture_map = utils.get_texture_map_from_color(self, color)
+            # self.face_attributes = utils.get_face_attributes_from_color(self, color)  # FIXME0
+            self.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(self.colors.unsqueeze(0), self.faces).squeeze().unsqueeze(0)
+
 
     def standardize_mesh(self, inplace=False):
         mesh = self if inplace else copy.deepcopy(self)
@@ -157,3 +190,10 @@ class Mesh():
         new_mesh.texture_map = self.texture_map.detach() if self.texture_map is not None else None
         new_mesh.face_attributes = self.face_attributes.detach() if self.face_attributes is not None else None
         return new_mesh
+    
+    def replace_label_mask(self, pred_label_path):
+        if not (self.labels == 0).all():
+            raise ValueError("this mesh is not in test dataset")
+
+        self.labels = self.labels
+

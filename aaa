@@ -1,19 +1,20 @@
 CUDA_VISIBLE_DEVICES=2 python sem_seg_main.py \
 \
-        --obj_path scene0164_03 \
-        --label  2 24\
-        --prompt "wooden floor,steel refridgerator" \
+        --obj_path scene0488_00 \
+        --label 3\
+        --prompt "steel cabinet" \
+        --pred_label_path 200\
         --forbidden "human face,English alphabet,lighting,human" \
-        --output_dir results/test_gallery/scene0164_03/ \
+        --output_dir results/test_label/scene0304_00/gt_label \
 \
-        --learning_rate 0.0002 \
+        --learning_rate 0.0005 \
         --lr_decay 0.9 \
-        --n_iter 400 \
+        --n_iter 1000 \
 \
         --frontview_elev_std 0.01 \
         --frontview_azim_std 0.1 \
         --background 0.1 0.1 0.1 \
-        --render_all_grad_one \
+        --render_one_grad_one \
 \
         --n_normaugs 1 \
         --n_augs 1 \
@@ -29,8 +30,7 @@ CUDA_VISIBLE_DEVICES=2 python sem_seg_main.py \
         --with_prior_color\
 \
         --clipavg \
-        --seed 12\
-        --report_step 10 
+        --report_step 100 
 
 
         # --image star.jpg \

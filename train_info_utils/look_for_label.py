@@ -44,7 +44,7 @@ label_to_class = {
     40: "other properties",
 }
 
-a = PlyData.read("/home/tb5zhh/data/full/train/scene0055_00.ply")
+a = PlyData.read("/home/tb5zhh/data/full/train/scene0638_00.ply")
 
 labels = []
 classes = []

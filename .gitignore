@@ -145,6 +145,7 @@ dmypy.json
 .vscode/
 *.obj
 *.ply
-
+*.jpg
 
 /results
+/data

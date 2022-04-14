@@ -21,6 +21,7 @@ from torchvision import transforms
 from convert import HSVLoss as HSV
 import json
 from IPython import embed
+import time
 
 # if __name__ == '__main__':
 #     print('imported')
@@ -44,7 +45,11 @@ def run(args):
 
     ################# Loading #################
     render = Renderer()  # pi / 3
-    init_mesh = Mesh(args.obj_path)
+    if args.pred_label_path is not None:
+        pred_label_path = '/home/jinbu/text2mesh/data/pred_label/' + args.pred_label_path + '/' + args.obj_path + '.txt'
+        init_mesh = Mesh(args.obj_path, pred_label_path)
+    else:
+        init_mesh = Mesh(args.obj_path)
     # Bounding sphere normalizer
     # mesh.vertices is modified
     MeshNormalizer(init_mesh)()
@@ -52,7 +57,9 @@ def run(args):
     full_pred_rgb = init_mesh.colors.detach()
     full_pred_vertices = init_mesh.vertices.detach()
 
+    train_info=[]
     for label_order, label in enumerate(args.label):
+        preprocess_begin_time = time.time()
         if not args.render_all_grad_all:
             if not (init_mesh.labels == label).any():
                 print(f"label {label} is not in this mesh")
@@ -76,12 +83,12 @@ def run(args):
 
         if not args.with_prior_color:
             mesh.colors = torch.full(size=(mesh.colors.shape[0], 3), fill_value=0.5, device=device)
-            mesh.face_attributes = torch.full(size=(mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
+            mesh.face_attributes = torch.full(size=(1, mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
         render_args = []
         fail = False
         for i in range(args.n_views):
             if args.render_all_grad_one:
-                result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1)
+                result = render.find_appropriate_view(masked_mesh, args.view_min, args.view_max, percent=1)
             else:
                 result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1)
             if result is None:
@@ -90,6 +97,9 @@ def run(args):
             render_args.append(result)
         if fail:
             continue
+
+        preprocess_end_time = time.time()
+        preprocess_time = preprocess_end_time-preprocess_begin_time
 
         losses = []
 
@@ -164,6 +174,9 @@ def run(args):
             if not args.render_all_grad_all:
                 prompt = prompt.split(',')[label_order].strip()
 
+            if not args.render_one_grad_one:
+                prompt = "a room with "+prompt
+
             with torch.no_grad():
                 prompt_token = clip.tokenize([prompt]).to(device)
                 encoded_text = clip_model.encode_text(prompt_token)
@@ -188,6 +201,11 @@ def run(args):
                 img = preprocess(img).to(device)
                 encoded_image = clip_model.encode_image(img.unsqueeze(0))
 
+        begin_time = time.time()
+        last_ten_ave_text_loss = []
+        last_ten_ave_norm_text_loss = []
+        last_ten_ave_hsv_loss = []
+        last_ten_ave_rgb_loss = []
         for i in tqdm(range(args.n_iter), desc=f"{args.dir}-{prompt}"):
             optim.zero_grad()
 
@@ -268,6 +286,7 @@ def run(args):
                 rand_background=args.rand_background,
                 fixed=args.fixed,
                 fixed_all=args.fixed_all,
+                ini_camera_up_direction=args.ini_camera_up_direction
             )
 
             text_loss = torch.tensor([0.]).cuda()
@@ -394,7 +413,7 @@ def run(args):
                     # if not args.no_prompt:
                     normloss.backward(retain_graph=args.retain_graph)
 
-            loss += hsv_loss + hsv_stat_loss + sv_stat_loss + rgb_loss + image_loss + text_loss + forbidden_loss + norm_image_loss + norm_text_loss + norm_forbidden_loss
+            loss += hsv_loss + hsv_stat_loss + sv_stat_loss + rgb_loss + image_loss + text_loss + forbidden_loss/10 + norm_image_loss + norm_text_loss + norm_forbidden_loss/10
             loss.backward(retain_graph=args.retain_graph)
             optim.step()
             if args.regress:
@@ -437,6 +456,16 @@ def run(args):
                         'norm_image_loss': norm_image_loss,
                         'norm_forbidden_loss': norm_forbidden_loss,
                     })
+            if args.n_iter-i <=10:
+                last_ten_ave_text_loss.append(text_loss.cpu().detach().numpy())
+                last_ten_ave_norm_text_loss.append(norm_text_loss.cpu().detach().numpy())
+                last_ten_ave_hsv_loss.append((hsv_stat_loss+sv_stat_loss).cpu().detach().numpy())
+                last_ten_ave_rgb_loss.append(rgb_loss.cpu().detach().numpy())
+
+        end_time = time.time()
+        train_info.append((label, args.n_iter, preprocess_time, end_time-begin_time, np.mean(last_ten_ave_text_loss), 
+                            np.mean(last_ten_ave_norm_text_loss), np.mean(last_ten_ave_hsv_loss), np.mean(last_ten_ave_rgb_loss)))
+
 
         if args.render_one_grad_one:
             full_pred_rgb[ver_mask] = output_mesh.colors
@@ -454,6 +483,11 @@ def run(args):
         if args.render_all_grad_all:
             break
 
+    with open(os.path.join(args.dir, "train_info.txt"), "w") as f:
+        f.writelines("label, iter, prepro_time, all_tarin_time, text_loss, norm_text_loss, hsv_loss, rgb_loss\n")
+        for info in train_info:
+            f.writelines(str(info)+"\n")
+
     # FixMe: input vertices should be fixed
     init_mesh.colors = full_pred_rgb
     if not args.color_only:
@@ -470,6 +504,7 @@ def report_process(dir, i, loss, rendered_images, label, loss_group):
     torchvision.utils.save_image(rendered_images, os.path.join(dir, 'label_{}_iter_{}.jpg'.format(label, i)))
 
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -480,6 +515,7 @@ if __name__ == '__main__':
     parser.add_argument('--forbidden', nargs="+", default=None, help='text description for each category, joined by comma. Number of categories should comply with --label')
     parser.add_argument('--image', type=str, default=None)  # TODO
     parser.add_argument('--output_dir', type=str, default='round2/alpha5', help="Output directory")
+    parser.add_argument('--pred_label_path', type=str, default=None, help='use semantic mask that VIBUS model predicts')
     # ==============================================================
 
     # ================= Neural Style Field options =================
@@ -515,6 +551,7 @@ if __name__ == '__main__':
     parser.add_argument('--frontview_azim_std', type=float, default=8, help="Renderer: frontview standard deviation")
     parser.add_argument('--view_min', type=float, default=0.6, help="Renderer: ")
     parser.add_argument('--view_max', type=float, default=0.9, help="Renderer: ")
+    parser.add_argument('--ini_camera_up_direction', action='store_true', default=False, help="Renderer: ")
     parser.add_argument('--fixed', action='store_true', default=False, help="Renderer: ")
     parser.add_argument('--fixed_all', action='store_true', default=False, help="Renderer: ")
     parser.add_argument('--show', action='store_true', help="Renderer: show with matplotlib when rendering")

@@ -395,9 +395,10 @@ class Renderer():
         face_attributes = [mesh.face_attributes, torch.ones((1, mesh.faces.shape[0], 3, 1), device='cuda')]
         length = 10000
         for i in range(length):
-            if i % 1000 == 0:
+            fov_alpha = i/length
+            if i % 500 == 0:
                 print(i)
-            elev = torch.rand(1) * np.pi
+            elev = torch.rand(1) * np.pi / 2
             azim = torch.rand(1) * 2 * np.pi
             fov = torch.clamp(np.pi / 2 * (1 - torch.normal(0., np.pi / 6, (1,)).abs()) * percent, 0, np.pi)
             camera_transform = get_camera_from_inside_out(elev, azim, r=1.0).to(device)
@@ -441,7 +442,8 @@ class Renderer():
                                 rand_background=False,
                                 fixed=True,
                                 fixed_all=True,
-                                render_args=None):
+                                render_args=None,
+                                ini_camera_up_direction=False):
         """
             camera view from inside out
         """
@@ -451,6 +453,8 @@ class Renderer():
         images = []
         masks = []
         rgb_mask = []
+        ratios = []
+        fovs = []
 
         if background is not None:
             face_attributes = [mesh.face_attributes, torch.ones((1, n_faces, 3, 1), device='cuda')]
@@ -466,9 +470,10 @@ class Renderer():
                 azim = torch.clamp(torch.normal(mean=render_args[i][2], std=azim_std * np.pi), 0, 2 * np.pi)
                 fov = torch.clamp(render_args[i][3] * 1 / torch.normal(mean=1, std=0.1, size=(1,)), 0, np.pi * 2 / 3)
 
-            fov = np.pi/2
+            fov = np.pi/3
+            fovs.append(fov/np.pi)
 
-            camera_transform = get_camera_from_inside_out(elev, azim, r=1.0).to(device)
+            camera_transform = get_camera_from_inside_out(elev, azim, r=1.0, ini_camera_up_direction=ini_camera_up_direction).to(device)
             camera_projection = kal.render.camera.generate_perspective_projection(fov).to(device)
 
             face_vertices_camera, face_vertices_image, face_normals = kal.render.mesh.prepare_vertices(mesh.vertices.to(device),
@@ -483,6 +488,10 @@ class Renderer():
                 face_attributes,
                 face_normals[:, :, -1],
             )
+
+            ratio = torch.count_nonzero(face_idx[0] != -1) / (224*224)
+            ratios.append(ratio)
+
             if background is not None:
                 image_features, mask = image_features
 
@@ -516,6 +525,11 @@ class Renderer():
         images = torch.cat(images, dim=0).permute(0, 3, 1, 2)
         masks = torch.cat(masks, dim=0)
         rgb_mask = torch.cat(rgb_mask, dim=0)
+        ratios = torch.tensor(ratios)
+        fovs = torch.tensor(fovs)
+
+        np.savetxt(f"render_ratio.txt", ratios.cpu())
+        np.savetxt(f"render_fov.txt", fovs.cpu())
 
         if show:
             with torch.no_grad():
