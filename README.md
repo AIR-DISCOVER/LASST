@@ -38,10 +38,9 @@ The outputs will be saved to `results/`.
 
 ### Outputs
 
-#### semantic mask
-(input mesh, w/o semantic mask, w/ semantic mask)
+#### semantic mask(input mesh, w/o semantic mask, w/ semantic mask)
 
-`text prompt: steel table
+`text prompt: steel table`
 <p float="center">
 <img src="examples/example/sem_mask/00.png" width="150">      
 <img src="examples/example/sem_mask/01.png" width="150">      
@@ -62,8 +61,7 @@ The outputs will be saved to `results/`.
 <img src="examples/example/sem_mask/22.png" width="150">
 </p>
 
-#### sampling
-(input mesh    text2mesh sampling    LASST sampling)
+#### sampling(input mesh, text2mesh sampling, LASST sampling)
 
 `text prompt: marble_floor, fabric sofa`
 <p float="center">
@@ -90,8 +88,7 @@ The outputs will be saved to `results/`.
 #### gt label vs. pred label
 <img src="examples/example/gt_pred_label/gt_pred.jpg" width="100%">
 
-#### regularization
-(input mesh, None, rgb, hsv)
+#### regularization(input mesh, None, rgb, hsv)
 `text prompt: leather sofa`
 <p float="center">
 <img src="examples/example/hsv/294_02_init_leather00.png" width="150">
