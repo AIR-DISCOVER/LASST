@@ -32,21 +32,16 @@ Call the below shell scripts to generate example styles.
 ```bash
 # wooden floor,steel refridgerator
 ./scripts/go.sh
-# ...
 ```
 
 The outputs will be saved to `results/`.
 
 #### Outputs
-![example](examples/example.jpg)
-
-![sem_mask](examples/sem_mask.jpg)
-
-![sampling](examples/sampling.jpg)
-
-![gt_pred](examples/gt_pred.jpg)
-
-![hsv](examples/hsv.jpg)
+<img src="examples/example.jpg" width="100%">
+<img src="examples/sem_mask.jpg" width="100%">
+<img src="examples/sampling.jpg" width="100%">
+<img src="examples/gt_pred.jpg" width="100%">
+<img src="examples/hsv.jpg" width="100%">
 
 ## Citation
 ```
