@@ -1,27 +1,25 @@
 import clip
-from tqdm import tqdm
-import kaolin.ops.mesh
-import torch
-from args import parse_args
-from neural_style_field import NeuralStyleField
-from utils import device
-from render import Renderer
-from mesh_scannet import Mesh
-from utils import clip_model
-from Normalization import MeshNormalizer
-from utils import preprocess
+import json
+import time
 import numpy as np
 import random
 import torchvision
 import os
+from tqdm import tqdm
+import kaolin.ops.mesh
+import torch
 from PIL import Image
 import argparse
 from pathlib import Path
 from torchvision import transforms
+
+from VertexColorDeviationNetwork import VertexColorDeviationNetwork
+from utils import (device, clip_model, preprocess)
+from render import Renderer
+from mesh_scannet import Mesh
+from Normalization import MeshNormalizer
 from convert import HSVLoss as HSV
-import json
-from IPython import embed
-import time
+
 
 # if __name__ == '__main__':
 #     print('imported')
@@ -44,7 +42,7 @@ def run(args):
         torch.backends.cudnn.deterministic = False
 
     ################# Loading #################
-    render = Renderer()  # pi / 3
+    render = Renderer()
     if args.pred_label_path is not None:
         pred_label_path = args.pred_label_path + '/' + args.obj_path + '.txt'
         init_mesh = Mesh(args.obj_path, pred_label_path)
@@ -148,7 +146,7 @@ def run(args):
             input_dim = 6
         else:
             input_dim = 3
-        mlp = NeuralStyleField(args.sigma,
+        mlp = VertexColorDeviationNetwork(args.sigma,
                                args.depth,
                                args.width,
                                'gaussian',
@@ -378,41 +376,6 @@ def run(args):
                 norm_image_loss /= args.n_normaugs
                 norm_forbidden_loss /= args.n_normaugs
 
-            # Also run separate loss on the uncolored displacements
-            if args.geoloss:
-                # FIXME
-                default_color = torch.zeros(len(output_mesh.vertices), 3).to(device)
-                default_color[:, :] = torch.tensor([0.5, 0.5, 0.5]).to(device)
-                output_mesh.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(default_color.unsqueeze(0), output_mesh.faces)
-                geo_renders, elev, azim = render.render_center_out_views(output_mesh,
-                                                                         num_views=args.n_views,
-                                                                         show=args.show,
-                                                                         center_azim=args.frontview_center[0],
-                                                                         center_elev=args.frontview_center[1],
-                                                                         std=args.frontview_std,
-                                                                         return_views=True,
-                                                                         lighting=True,
-                                                                         background=torch.tensor(args.background).to(device))
-                if args.n_normaugs > 0:
-                    normloss = 0.0
-                    ### avgview != aug
-                    for _ in range(args.n_normaugs):
-                        augmented_image = displaugment_transform(geo_renders)
-                        encoded_renders = clip_model.encode_image(augmented_image)
-                        if args.prompt:
-                            if encoded_text.shape[0] > 1:
-                                normloss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0), torch.mean(encoded_text, dim=0), dim=0)
-                            else:
-                                normloss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True), encoded_text)
-                        if args.image:
-                            if encoded_image.shape[0] > 1:
-                                normloss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0), torch.mean(encoded_image, dim=0), dim=0)
-                            else:
-                                normloss -= torch.cosine_similarity(torch.mean(encoded_renders, dim=0, keepdim=True), encoded_image)  # if args.image:
-                            #     loss -= torch.mean(torch.cosine_similarity(encoded_renders,encoded_image))
-                    # if not args.no_prompt:
-                    normloss.backward(retain_graph=args.retain_graph)
-
             loss += hsv_loss + hsv_stat_loss + sv_stat_loss + rgb_loss + image_loss + text_loss + forbidden_loss/10 + norm_image_loss + norm_text_loss + norm_forbidden_loss/10
             loss.backward(retain_graph=args.retain_graph)
             optim.step()
@@ -583,7 +546,6 @@ if __name__ == '__main__':
 
     # parser.add_argument('--overwrite', action='store_true') # TODO check behavior incase of overwrite
     # =================            Loss            =================
-    parser.add_argument('--geoloss', action="store_true", help="Additional loss for displacement")
     parser.add_argument('--clipavg', action="store_true", default=False, help="view: calculate similarity after calculate mean value")
     parser.add_argument('--hsv_loss_weight', default=None, type=float, help='add hsv loss to the loss function')
     parser.add_argument('--sv_stat_loss_weight', default=None, type=float, help='add hsv loss to the loss function')
@@ -615,15 +577,3 @@ if __name__ == '__main__':
 
     if not args.dry_run:
         run(args)
-
-# For comparison: 10*scenes
-# 1. w/ w/o HSV regularization
-# 2. full house / part rendering
-# 3. random / fixed focal lengths
-# 4. w/ or w/o initial colors
-# +5. w/ or w/o semantic mask
-
-# Future
-# 1. full house regularization
-# 2. camera pose
-# 3. feature interpolation

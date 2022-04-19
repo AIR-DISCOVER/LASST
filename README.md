@@ -1,8 +1,7 @@
-# Text2Mesh [[Project Page](https://threedle.github.io/text2mesh/)]
+# LASST(Language-guided Semantic Style Transfer of 3D Indoor Scenes) [[Project Page](https://threedle.github.io/text2mesh/)]
 [![arXiv](https://img.shields.io/badge/arXiv-Text2Mesh-b31b1b.svg)](https://arxiv.org/abs/2112.03221)
 ![Pytorch](https://img.shields.io/badge/PyTorch->=1.9.0-Red?logo=pytorch)
-![crochet candle](images/vases.gif)
-**Text2Mesh** is a method for text-driven stylization of a 3D mesh, as described in "Text2Mesh: Text-Driven Neural Stylization for Meshes" (forthcoming).
+**LASST** is a method for text-driven stylization of a 3D mesh, as described in "Text2Mesh: Text-Driven Neural Stylization for Meshes" (forthcoming).
 
 ## Getting Started
 ### Installation
