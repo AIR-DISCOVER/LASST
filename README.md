@@ -1,101 +1,65 @@
-# LASST(Language-guided Semantic Style Transfer of 3D Indoor Scenes) [[Project Page](https://threedle.github.io/text2mesh/)]
-[![arXiv](https://img.shields.io/badge/arXiv-Text2Mesh-b31b1b.svg)](https://arxiv.org/abs/2112.03221)
-![Pytorch](https://img.shields.io/badge/PyTorch->=1.9.0-Red?logo=pytorch)
-**LASST** is a method for text-driven stylization of a 3D mesh, as described in "Text2Mesh: Text-Driven Neural Stylization for Meshes" (forthcoming).
+# LASST(Language-guided Semantic Style Transfer of 3D Indoor Scenes)
+**LASST** is a method for Language-guided Semantic Style Transfer of 3D Indoor Scenes.
 
 ## Getting Started
 ### Installation
 
-**Note:** The below installation will fail if run on something other than a CUDA GPU machine.
 ```
-conda env create --file text2mesh.yml
-conda activate text2mesh
+conda env create --name LASST python=3.7
+conda install --yes --file requirements.txt
 ```
 
 System requirements
 ### System Requirements
 - Python 3.7
-- CUDA 10.2
+- CUDA 11.0
 - GPU w/ minimum 8 GB ram
+
+###  Data Preparation
+The dataset we used is ScanNetV2 dataset. See [HERE](https://github.com/ScanNet/ScanNet) for more details. Remember to fix the data path in `src/local.py` as your own datapath.
 
 
 ### Run examples
 Call the below shell scripts to generate example styles. 
 ```bash
-# cobblestone alien
-./demo/run_alien_cobble.sh
-# shoe made of cactus 
-./demo/run_shoe.sh
-# lamp made of brick
-./demo/run_lamp.sh
+# wooden floor,steel refridgerator
+./scripts/go.sh
 # ...
 ```
-The outputs will be saved to `results/demo`, with the stylized .obj files, colored and uncolored render views, and screenshots during training.
+
+The outputs will be saved to `results/`.
 
 #### Outputs
 <p float="center">
-<img alt="alien" height="135" src="images/alien.png" width="240"/>
-<img alt="alien geometry" height="135" src="images/alien_cobble_init.png" width="240"/>
-<img alt="alien style" height="135" src="images/alien_cobble_final.png" width="240"/>
+<img alt="example" height="228" src="examples/example.png" width="1132"/>
 </p>
 
 <p float="center">
-<img alt="alien" height="135" src="images/alien.png" width="240"/>
-<img alt="alien geometry" height="135" src="images/alien_wood_init.png" width="240"/>
-<img alt="alien style" height="135" src="images/alien_wood_final.png" width="240"/>
+<img alt="semantic mask" height="1100" src="examples/sem_mask.png" width="600"/>
 </p>
 
 <p float="center">
-<img alt="candle" height="135" src="images/candle.png" width="240"/>
-<img alt="candle geometry" height="135" src="images/candle_init.png" width="240"/>
-<img alt="candle style" height="135" src="images/candle_final.png" width="240"/>
+<img alt="sampling method" height="500" src="examples/sampling.png" width="600"/>
 </p>
 
 <p float="center">
-<img alt="person" height="135" src="images/person.png" width="240"/>
-<img alt="ninja geometry" height="135" src="images/ninja_init.png" width="240"/>
-<img alt="ninja style" height="135" src="images/ninja_final.png" width="240"/>
+<img alt="predicted label" height="2400" src="examples/gt_pred.png" width="600"/>
 </p>
 
 <p float="center">
-<img alt="shoe" height="135" src="images/shoe.png" width="240"/>
-<img alt="shoe geometry" height="135" src="images/shoe_init.png" width="240"/>
-<img alt="shoe style" height="135" src="images/shoe_final.png" width="240"/>
+<img alt="hsv loss" height="600" src="examples/hsv.png" width="600"/>
 </p>
-
-<p float="center">
-<img alt="vase" height="135" src="images/vase.png" width="240"/>
-<img alt="vase geometry" height="135" src="images/vase_init.png" width="240"/>
-<img alt="vase style" height="135" src="images/vase_final.png" width="240"/>
-</p>
-
-<p float="center">
-<img alt="lamp" height="135" src="images/lamp.png" width="240"/>
-<img alt="lamp geometry" height="135" src="images/lamp_init.png" width="240"/>
-<img alt="lamp style" height="135" src="images/lamp_final.png" width="240"/>
-</p>
-
-<p float="center">
-<img alt="horse" height="135" src="images/horse.png" width="240"/>
-<img alt="horse geometry" height="135" src="images/horse_init.png" width="240"/>
-<img alt="horse style" height="135" src="images/horse_final.png" width="240"/>
-</p>
-
-## Other implementations
-[Kaggle Notebook](https://www.kaggle.com/neverix/text2mesh/) (by [neverix](https://www.kaggle.com/neverix))
-
 
 ## Citation
 ```
-@article{text2mesh,
-    author = {Michel, Oscar
-              and Bar-On, Roi
-              and Liu, Richard
-              and Benaim, Sagie
-              and Hanocka, Rana
+@article{LASST,
+    author = {Bu Jin
+              and Beiwen Tian
+              and Hao Zhao
+              and Guyue Zhou
               },
-    title = {Text2Mesh: Text-Driven Neural Stylization for Meshes},
-    journal = {arXiv preprint arXiv:2112.03221},
-    year  = {2021}
+    title = {Language-guided Semantic Style Transfer of 3D Indoor Scenes},
+    journal = {fixmeee},
+    year  = {2022}
 }
 ```

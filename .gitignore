@@ -147,5 +147,5 @@ dmypy.json
 *.ply
 *.jpg
 
-/results
-/data
+/results/*
+/data/*
