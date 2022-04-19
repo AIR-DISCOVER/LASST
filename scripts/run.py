@@ -5,8 +5,9 @@ import sys
 import os
 from datetime import datetime
 from plyfile import PlyData
+from local import FULL_PATH
 
-SCENE_LIST = os.listdir('/home/tb5zhh/data/full/train')
+SCENE_LIST = os.listdir(FULL_PATH)
 
 DATE = datetime.today().strftime('%Y-%m-%d')
 # 2022-02-07: randomly choose: scene_id, label_id, texture, one class in one scene at a time e.g. "a rusted door"
@@ -127,7 +128,7 @@ while True:
     # for i in range(1):
     scene_id = SCENE_LIST[randint(0, len(SCENE_LIST) - 1)].strip('.ply')
 
-    a = PlyData.read(f"/home/tb5zhh/data/full/train/{scene_id}.ply")
+    a = PlyData.read(FULL_PATH+f"/{scene_id}.ply")
     labels = []
     for i in a.elements[0]['label']:
         if i not in labels:
