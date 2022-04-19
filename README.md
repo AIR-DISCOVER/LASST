@@ -40,11 +40,11 @@ The outputs will be saved to `results/`.
 
 steel table
 <p float="center">
-<img src="examples/example/sem_mask/00.png" width="150">
-<img src="examples/example/sem_mask/01.png" width="150">
-<img src="examples/example/sem_mask/02.png" width="150">
+<img src="examples/example/sem_mask/00.png" width="150">      
+<img src="examples/example/sem_mask/01.png" width="150">      
+<img src="examples/example/sem_mask/02.png" width="150">      
 </p>
-input mesh    w/o semantic mask    w/ semantic mask 
+input mesh        w/o semantic mask        w/ semantic mask 
 
 marble floor
 <p float="center">
