@@ -1,6 +1,6 @@
 # LASST(Language-guided Semantic Style Transfer of 3D Indoor Scenes)
 
-Created by Xiaoxue Chen, Hao Zhao, Guyue Zhou and Ya-Qin Zhang from Institute for [AI Industry Research(AIR), Tsinghua University](https://air.tsinghua.edu.cn/).
+Created by Hao Zhao, Beiwen Tian, Bu Jin and Guyue Zhou from Institute for [AI Industry Research(AIR), Tsinghua University](https://air.tsinghua.edu.cn/).
 
 ## Introduction
 3D content creation and editing is a long-existing multimedia demand. With the surge of metaverse, tech giants and consumers are now looking forward to a high-quality virtual world that people can live in and interactive with. We study the problem of 3D indoor scene style transfer, which would promote the user experience of metaverse residents. 
