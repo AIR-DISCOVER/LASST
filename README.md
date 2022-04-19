@@ -54,16 +54,16 @@ marble floor
 </p>
 input mesh    w/o semantic mask    w/ semantic mask 
 
-<p float="center">
 wooden floor, silk sofa, wooden table
+<p float="center">
 <img src="examples/example/sem_mask/20.png" width="150">
 <img src="examples/example/sem_mask/21.png" width="150">
 <img src="examples/example/sem_mask/22.png" width="150">
 </p>
 input mesh    w/o semantic mask    w/ semantic mask 
 
-<p float="center">
 marble_floor, fabric sofa
+<p float="center">
 <img src="examples/example/sampling/00.png" width="150">
 <img src="examples/example/sampling/01.png" width="150">
 <img src="examples/example/sampling/02.png" width="150">
@@ -71,8 +71,8 @@ marble_floor, fabric sofa
 input mesh    text2mesh sampling    LASST sampling 
 
 
-<p float="center">
 wooden floor, steel refrigerator
+<p float="center">
 <img src="examples/example/sampling/10.png" width="150">
 <img src="examples/example/sampling/11.png" width="150">
 <img src="examples/example/sampling/12.png" width="150">
@@ -80,8 +80,8 @@ wooden floor, steel refrigerator
 input mesh    text2mesh sampling    LASST sampling 
 
 
-<p float="center">
 golden chair, oak table
+<p float="center">
 <img src="examples/example/sampling/20.png" width="150">
 <img src="examples/example/sampling/21.png" width="150">
 <img src="examples/example/sampling/22.png" width="150">
