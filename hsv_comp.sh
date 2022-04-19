@@ -1,19 +1,19 @@
-CUDA_VISIBLE_DEVICES=2 python sem_seg_main.py \
+CUDA_VISIBLE_DEVICES=1 python sem_seg_main.py \
 \
-        --obj_path scene0164_03 \
-        --label  2 24\
-        --prompt "wooden floor,steel refridgerator" \
+        --obj_path scene0520_00 \
+        --label  5 6\
+        --prompt "wooden chairs, leather sofa" \
         --forbidden "human face,English alphabet,lighting,human" \
-        --output_dir results/test_gallery/scene0164_03/ \
+        --output_dir results/test_gallery/scene0520_00/ \
 \
-        --learning_rate 0.0002 \
+        --learning_rate 0.0005 \
         --lr_decay 0.9 \
-        --n_iter 400 \
+        --n_iter 700 \
 \
         --frontview_elev_std 0.01 \
         --frontview_azim_std 0.1 \
         --background 0.1 0.1 0.1 \
-        --render_all_grad_one \
+        --render_one_grad_one \
 \
         --n_normaugs 1 \
         --n_augs 1 \
@@ -26,11 +26,9 @@ CUDA_VISIBLE_DEVICES=2 python sem_seg_main.py \
         --normmaxcrop 0.9 \
 \
         --color_only\
-        --with_prior_color\
 \
         --clipavg \
-        --seed 12\
-        --report_step 10 
+        --report_step 100 
 
 
         # --image star.jpg \

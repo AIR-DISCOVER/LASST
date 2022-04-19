@@ -1,4 +1,5 @@
 import os
+from tkinter import W
 import warnings
 from collections import namedtuple
 from pathlib import Path
@@ -7,8 +8,7 @@ import clip
 import kaolin as kal
 import numpy as np
 import torch
-from kaolin.io.materials import (MaterialFileError, MaterialLoadError,
-                                 MaterialNotFoundError)
+from kaolin.io.materials import (MaterialFileError, MaterialLoadError, MaterialNotFoundError)
 from PIL import Image
 from plyfile import PlyData
 from torchvision import transforms
@@ -20,10 +20,7 @@ augment_transform = transforms.Compose([
     transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
 ])
 
-clip_transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
-])
+clip_transform = transforms.Compose([transforms.Resize((224, 224)), transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))])
 
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
@@ -31,7 +28,7 @@ if torch.cuda.is_available():
 else:
     device = torch.device("cpu")
 
-clip_model, preprocess = clip.load('ViT-B/32', device, jit=False)
+clip_model, preprocess = clip.load('ViT-B/32', device, jit=True)
 
 
 def get_camera_from_view(elev, azim, r=3.0):
@@ -47,21 +44,20 @@ def get_camera_from_view(elev, azim, r=3.0):
     camera_proj = kal.render.camera.generate_transformation_matrix(pos, look_at, direction)
     return camera_proj
 
-def get_camera_from_inside_out(elev, azim, r=3.0):
-    x = r * torch.sin(elev) * torch.cos(azim)
-    y = r * torch.sin(elev) * torch.sin(azim)
-    z = r * torch.cos(elev)
-    # print(elev,azim,x,y,z)
-
-    pos = torch.tensor([x, y, z]).unsqueeze(0)
-    look_at = -pos
-    # change camera height
-    camera_alpha = 1
-    pos = pos * camera_alpha
-    if x.numpy() == 0.0 and y.numpy() == 0.0:
+def get_camera_from_inside_out(elev, azim, pos=None, r=-1, ini_camera_up_direction=False):
+    x = torch.sin(elev) * torch.cos(azim)
+    y = torch.sin(elev) * torch.sin(azim)
+    z = torch.cos(elev)
+    look_at_relative = -torch.tensor([x, y, z]).unsqueeze(0)
+    
+    pos = torch.tensor([x, y, z]).unsqueeze(0) if pos is None else pos.unsqueeze(0)
+    look_at = pos + look_at_relative
+    if ini_camera_up_direction:
+        direction = torch.tensor([0.0, 1.0, 0.0]).unsqueeze(0)
+    elif x.numpy() == 0.0 and y.numpy() == 0.0:
         direction = torch.tensor([0.0, 1.0, 0.0]).unsqueeze(0)
     else:
-        direction = torch.tensor([-z*x, -z*y, x*x+y*y]).unsqueeze(0)
+        direction = torch.tensor([-z * x, -z * y, x * x + y * y]).unsqueeze(0)
 
     camera_proj = kal.render.camera.generate_transformation_matrix(pos, look_at, direction)
     return camera_proj
@@ -93,6 +89,7 @@ def apply_affine(verts, A):
     transformed_verts = A @ verts.T
     transformed_verts = transformed_verts[:-1]
     return transformed_verts.T
+
 
 def standardize_mesh(mesh):
     verts = mesh.vertices
@@ -257,9 +254,7 @@ def get_uv_assignment(num_faces):
     for i in range(M):
         px = 0
         for j in range(M):
-            uv_map[:, count] = torch.tensor([[px, py],
-                                             [px + 1, py],
-                                             [px + 1, py + 1]])
+            uv_map[:, count] = torch.tensor([[px, py], [px + 1, py], [px + 1, py + 1]])
             px += 2
             count += 1
             if count >= num_faces:
@@ -316,9 +311,7 @@ def getRotMat(axis, theta):
     import math
 
     axis = axis / np.linalg.norm(axis)
-    cprod = np.array([[0, -axis[2], axis[1]],
-                      [axis[2], 0, -axis[0]],
-                      [-axis[1], axis[0], 0]])
+    cprod = np.array([[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
     rot = math.cos(theta) * np.identity(3) + math.sin(theta) * cprod + \
           (1 - math.cos(theta)) * np.outer(axis, axis)
     return rot
@@ -348,11 +341,30 @@ def extract_from_gl_viewmat(gl_mat):
     return camera_location, target
 
 
-def psScreenshot(vertices, faces, axis, angles, save_path, name="mesh", frame_folder="frames", scalars=None,
+def psScreenshot(vertices,
+                 faces,
+                 axis,
+                 angles,
+                 save_path,
+                 name="mesh",
+                 frame_folder="frames",
+                 scalars=None,
                  colors=None,
-                 defined_on="faces", highlight_faces=None, highlight_color=[1, 0, 0], highlight_radius=None,
-                 cmap=None, sminmax=None, cpos=None, clook=None, save_video=False, save_base=False,
-                 ground_plane="tile_reflection", debug=False, edge_color=[0, 0, 0], edge_width=1, material=None):
+                 defined_on="faces",
+                 highlight_faces=None,
+                 highlight_color=[1, 0, 0],
+                 highlight_radius=None,
+                 cmap=None,
+                 sminmax=None,
+                 cpos=None,
+                 clook=None,
+                 save_video=False,
+                 save_base=False,
+                 ground_plane="tile_reflection",
+                 debug=False,
+                 edge_color=[0, 0, 0],
+                 edge_width=1,
+                 material=None):
     import polyscope as ps
 
     ps.init()
@@ -364,8 +376,7 @@ def psScreenshot(vertices, faces, axis, angles, save_path, name="mesh", frame_fo
 
     frame_path = f"{save_path}/{frame_folder}"
     if save_base == True:
-        ps_mesh = ps.register_surface_mesh("mesh", vertices, faces, enabled=True,
-                                           edge_color=edge_color, edge_width=edge_width, material=material)
+        ps_mesh = ps.register_surface_mesh("mesh", vertices, faces, enabled=True, edge_color=edge_color, edge_width=edge_width, material=material)
         ps.screenshot(f"{frame_path}/{name}.png")
         ps.remove_all_structures()
     Path(frame_path).mkdir(parents=True, exist_ok=True)
@@ -377,24 +388,19 @@ def psScreenshot(vertices, faces, axis, angles, save_path, name="mesh", frame_fo
         rot = getRotMat(axis, angles[i])
         rot_verts = np.transpose(rot @ np.transpose(vertices))
 
-        ps_mesh = ps.register_surface_mesh("mesh", rot_verts, faces, enabled=True,
-                                           edge_color=edge_color, edge_width=edge_width, material=material)
+        ps_mesh = ps.register_surface_mesh("mesh", rot_verts, faces, enabled=True, edge_color=edge_color, edge_width=edge_width, material=material)
         if scalars is not None:
-            ps_mesh.add_scalar_quantity(f"scalar", scalars, defined_on=defined_on,
-                                        cmap=cmap, enabled=True, vminmax=sminmax)
+            ps_mesh.add_scalar_quantity(f"scalar", scalars, defined_on=defined_on, cmap=cmap, enabled=True, vminmax=sminmax)
         if colors is not None:
-            ps_mesh.add_color_quantity(f"color", colors, defined_on=defined_on,
-                                       enabled=True)
+            ps_mesh.add_color_quantity(f"color", colors, defined_on=defined_on, enabled=True)
         if highlight_faces is not None:
             # Create curve to highlight faces
             curve_v, new_f = trimMesh(rot_verts, faces[highlight_faces, :])
             curve_edges = []
             for face in new_f:
-                curve_edges.extend(
-                    [[face[0], face[1]], [face[1], face[2]], [face[2], face[0]]])
+                curve_edges.extend([[face[0], face[1]], [face[1], face[2]], [face[2], face[0]]])
             curve_edges = np.array(curve_edges)
-            ps_curve = ps.register_curve_network("curve", curve_v, curve_edges, color=highlight_color,
-                                                 radius=highlight_radius)
+            ps_curve = ps.register_curve_network("curve", curve_v, curve_edges, color=highlight_color, radius=highlight_radius)
 
         if cpos is None or clook is None:
             ps.reset_camera_to_home_view()
@@ -412,8 +418,7 @@ def psScreenshot(vertices, faces, axis, angles, save_path, name="mesh", frame_fo
         fp_in = f"{frame_path}/{name}_*.png"
         fp_out = f"{save_path}/{name}.gif"
         img, *imgs = [Image.open(f) for f in sorted(glob.glob(fp_in))]
-        img.save(fp=fp_out, format='GIF', append_images=imgs,
-                 save_all=True, duration=200, loop=0)
+        img.save(fp=fp_out, format='GIF', append_images=imgs, save_all=True, duration=200, loop=0)
 
 
 # ================== POSITIONAL ENCODERS =============================

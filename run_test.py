@@ -1,12 +1,14 @@
 # %%
+from pickletools import int4
 from random import shuffle, random, randint, choice, seed
 from launch import launch
 import sys
 import os
 from datetime import datetime
 from plyfile import PlyData
+import numpy as np
 
-SCENE_LIST = os.listdir('/home/tb5zhh/data/full/train')
+SCENE_LIST = os.listdir('/home/tb5zhh/data/full/test')
 
 DATE = datetime.today().strftime('%Y-%m-%d')
 # 2022-02-07: randomly choose: scene_id, label_id, texture, one class in one scene at a time e.g. "a rusted door"
@@ -14,47 +16,45 @@ DATE = datetime.today().strftime('%Y-%m-%d')
 # 2022-02-12: adopt new textures and apply those to all classes in a scene
 # 2022-03-01: fix the big bug of incorrespondance between class and label
 
-COMMAND = f"""python main.py \
-        --run branch \
+pred_label_path = str(100)
+
+COMMAND = f"""
+python sem_seg_main.py \
         --obj_path $SCENE_ID$ \
         --label $LABEL$\
         --prompt \"$PROMPT$\" \
         --forbidden \"human face,English alphabet,lighting,human\"\
-        --output_dir \"results/batch/{DATE}_one_one/$SCENE_ID$/$NAME$\" \
-        --learning_rate 0.0005 \
+        --output_dir \"results/batch/{DATE}/$SCENE_ID$/$NAME$\" \
+        --learning_rate 0.001\
         --lr_decay 0.9 \
-        --n_iter 700 \
-\
-        --frontview_elev_std 0.01 \
-        --frontview_azim_std 0.1 \
-        --background 0.1 0.1 0.1 \
-        --render_all_grad_all \
-\
-        --n_normaugs 1 \
-        --n_augs 1 \
-        --n_views 5 \
-        --mincrop 0.6 \
-        --maxcrop 0.9 \
-        --view_min 0.25 \
-        --view_max 0.7 \
-        --normmincrop 0.6 \
-        --normmaxcrop 0.9 \
-\
+        --n_iter 1000\
+        --frontview_elev_std 0.01\
+        --frontview_azim_std 0.1\
+        --background 0.1 0.1 0.1\
+        --render_one_grad_one\
+        --n_normaugs 3\
+        --n_augs 3\
+        --n_views 8\
+        --mincrop 0.6\
+        --maxcrop 0.9\
+        --view_min 0.5\
+        --view_max 0.7\
+        --normmincrop 0.6\
+        --normmaxcrop 0.9\
         --color_only\
         --with_prior_color\
-\
-        --clipavg \
-        --report_step 100 
+        --clipavg\
+        --sv_stat_loss_weight 0.1\
+        --report_step 100
 """
 
 # %%
-# ini_camera_up_direction
 
 COLORS = [
     'ash grey',
     'eton blue',
-    'celadon grass',
-    'mint grass',
+    'celadon green',
+    'mint green',
     'navy blue',
     'sapphire blue',
     'turquoise blue',
@@ -66,7 +66,7 @@ COLORS = [
 
 TEXTURE = [
     'brick',
-    'oak',
+    'wooden',
     'marble',
     #'plastic',
     'steel',
@@ -79,40 +79,40 @@ TEXTURE = [
 
 CLASS_LABELS = (
     (0, "null",     []),
-    (1, "wall",     ['brick', 'oak']),
-    (2, "floor",    ['marble', 'oak', 'steel']),
-    (3, "cabinet",  ['steel', 'oak',]),
-    (4, "bed",      ['leather', 'silk']),
-    (5, "chair",    ['oak', 'leather',]),
-    (6, "sofa",     ['leather', 'fabric', 'silk']),
-    (7, "table",    ['oak', 'steel', 'stone']),
-    (8, "door",     ['oak', 'stone']),
-    (9, "window",   ['oak',]),
-    (10, "bookshelf",   ['oak', 'steel', 'stone']),
-    (11, "picture",     ['Van Gogh\'s', 'rainbow',]),
-    (12, "counter",     ['steel', 'oak',]),
-    (13, "blinds",      ['fabric', 'silk',]),
-    (14, "desk",        ['oak', 'steel',]),
-    (15, "shelves",     ['oak', 'steel',]),
+    (1, "wall",     ['brick', 'wooden', 'icy',]),
+    (2, "floor",    ['marble', 'icy', 'wooden', 'steel']),
+    (3, "cabinet",  ['steel', 'wooden',]),
+    (4, "bed",      ['leather', 'diamond texture', ]),
+    (5, "chair",    ['wooden', 'leather', ]),
+    (6, "sofa",     ['leather', 'fabric',]),
+    (7, "table",    ['wooden', 'steel',]),
+    (8, "door",     ['wooden',]),
+    (9, "window",   ['wooden',]),
+    (10, "bookshelf",   ['wooden', 'steel',]),
+    (11, "picture",     ['Van Gogh', 'rainbow',]),
+    (12, "counter",     ['steel', 'wooden',]),
+    (13, "blinds",      ['fabric', 'rainbow',]),
+    (14, "desk",        ['wooden', 'stone', 'steel',]),
+    (15, "shelves",     ['wooden', 'Chocolate', 'steel',]),
     (16, "curtain",     ['fabric', 'rainbow',]),
-    (17, "dresser",     ['oak', 'stone', 'steel',]),
-    (18, "pillow",      ['leather','silk', 'fabric']),
+    (17, "dresser",     ['wooden', 'stone', 'steel',]),
+    (18, "pillow",      ['leather',]),
     (19, "mirror",      []),
-    (20, "floor mat",   ['colorful', 'flaming', 'flowers', 'grass', 'rainbow',]),
-    (21, "clothes",     ['colorful', 'flaming', 'flowers', 'grass',]),
+    (20, "floor mat",   ['blue', 'red', 'yellow', 'green', 'rainbow',]),
+    (21, "clothes",     ['blue', 'red', 'yellow', 'green',]),
     (22, "ceiling",     []),
-    (23, "books",       ['colorful', 'flaming', 'flowers', 'grass',]),
-    (24, "refridgerator", ['steel',]),
+    (23, "books",       ['blue', 'red', 'yellow', 'green',]),
+    (24, "refridgerator", ['steel', 'red',]),
     (25, "television",  ['outdated',]),
     (26, "paper",       []),
-    (27, "towel",       ['colorful', 'flaming', 'flowers', 'grass', 'rainbow',]),
-    (28, "shower curtain", ['colorful', 'rainbow',]),
+    (27, "towel",       ['blue', 'red', 'yellow', 'green', 'rainbow',]),
+    (28, "shower curtain", ['blue', 'red', 'yellow', 'green', 'rainbow',]),
     (29, "box",         []),
-    (30, "whiteboard",  []),
+    (30, "whiteboard",  ['math problems in',]),
     (31, "person",      []),
-    (32, "nightstand",  ['oak', 'steel',]),
-    (33, "toilet",      ['golden',]),
-    (34, "sink",        ['steel',]),
+    (32, "nightstand",  ['wooden', 'marble',]),
+    (33, "toilet",      ['golden', 'Chocolate',]),
+    (34, "sink",        ['steel', 'Chocolate']),
     (35, "lamp",        []),
     (36, "bathtub",     ['steel', 'golden', 'Chocolate']),
     (37, "bag",         []),
@@ -121,27 +121,26 @@ CLASS_LABELS = (
     (40, "other properties",[]),
 )
 
-seed(42)
-
-while True:
+for i in range(len(SCENE_LIST)):
     # for i in range(1):
-    scene_id = SCENE_LIST[randint(0, len(SCENE_LIST) - 1)].strip('.ply')
+    scene_id = SCENE_LIST[i].strip('.ply')
 
-    a = PlyData.read(f"/home/tb5zhh/data/full/train/{scene_id}.ply")
+    a = np.loadtxt(f"/home/jinbu/text2mesh/data/pred_label/{pred_label_path}/{scene_id}.txt", dtype=int)
     labels = []
-    for i in a.elements[0]['label']:
+    for i in a:
         if i not in labels:
             labels.append((i))
     shuffle(labels)
 
     choose_num = 0
-    label_id = []
+    label_id = [1, 2]
     for i in labels:
-        if i not in [0, 9, 17,19, 21,22, 23, 25, 26, 27, 29, 30, 31, 35, 36, 37, 38, 39, 40]:
+        if i not in [0, 1, 2, 9, 19, 22, 26, 29, 31, 35, 37, 38, 39, 40]:
             label_id.append(i)
             choose_num = choose_num + 1
-        if choose_num > 1:
+        if choose_num > 4:
             break
+
     prompt = f"{','.join([f'{choice(CLASS_LABELS[id][2])} {CLASS_LABELS[id][1]}' for id in label_id])}"        
     name = "_".join([str(i) for i in label_id])
     chose_label = " ".join(str(i) for i in label_id)
@@ -167,13 +166,13 @@ while True:
     """
 
     if sys.argv[1] == '0':    
-        command = command.replace('$NAME$', str(name) + '/hsv_02/')
-    elif sys.argv[1] == '1':    
-        command = command.replace('$NAME$', str(name) + '/rgb_02/')
-    elif sys.argv[1] == '2':    
         command = command.replace('$NAME$', str(name) + '/base')
+    elif sys.argv[1] == '1':    
+        command = command.replace('$NAME$', str(name) + '/cuda_1')
+    elif sys.argv[1] == '2':    
+        command = command.replace('$NAME$', str(name) + '/cuda_2')
     elif sys.argv[1] == '3':    
-        command = command.replace('$NAME$', str(name) + '/text2mesh_angel')
+        command = command.replace('$NAME$', str(name) + '/rander_all_grad_all')
     else:
         raise Exception("should add an arg number like: python run.py 3")
 
