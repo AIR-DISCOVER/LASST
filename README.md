@@ -84,10 +84,6 @@ The outputs will be saved to `results/`.
 <img src="examples/example/sampling/22.png" width="150">
 </p>
 
-
-#### gt label vs. pred label
-<img src="examples/example/gt_pred_label/gt_pred.jpg" width="100%">
-
 #### regularization(input mesh, None, rgb, hsv)
 `text prompt: leather sofa`
 <p float="center">
@@ -104,6 +100,9 @@ The outputs will be saved to `results/`.
 <img src="examples/example/hsv/38_02_rgb00.png" width="150">
 <img src="examples/example/hsv/38_02_hsv00.png" width="150">
 </p>
+
+#### gt label vs. pred label
+<img src="examples/example/gt_pred_label/gt_pred.jpg" width="100%">
 
 ## Citation
 ```
