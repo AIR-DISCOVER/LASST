@@ -1,5 +1,13 @@
 # LASST(Language-guided Semantic Style Transfer of 3D Indoor Scenes)
-**LASST** is a method for Language-guided Semantic Style Transfer of 3D Indoor Scenes.
+
+Created by Xiaoxue Chen, Hao Zhao, Guyue Zhou and Ya-Qin Zhang from Institute for [AI Industry Research(AIR), Tsinghua University](https://air.tsinghua.edu.cn/).
+
+## Introduction
+3D content creation and editing is a long-existing multimedia demand. With the surge of metaverse, tech giants and consumers are now looking forward to a high-quality virtual world that people can live in and interactive with. We study the problem of 3D indoor scene style transfer, which would promote the user experience of metaverse residents. 
+
+In this repository, we address the new problem of language-guided semantic style transfer of 3D indoor scenes. The input is a 3D indoor scene mesh and several phrases that describe the target scene. Firstly, 3D vertex coordinates are mapped to RGB residues by a multi-layer perceptron. Secondly, colored 3D meshes are differentiablly rendered into 2D images, via a viewpoint sampling strategy tailored for indoor scenes. Thirdly, rendered 2D images are compared to phrases, via pre-trained vision-language models. Lastly, errors are back-propagated to the multi-layer perceptron to update vertex colors corresponding to certain semantic categories. The whole process of LASST can be seen from below. Code and models will be made publicly available.
+
+![main](examples/main.png)
 
 ## Getting Started
 ### Installation
@@ -30,25 +38,15 @@ Call the below shell scripts to generate example styles.
 The outputs will be saved to `results/`.
 
 #### Outputs
-<p float="center">
-<img alt="example" height="228" src="examples/example.png" width="1132"/>
-</p>
+![example](examples/example.jpg)
 
-<p float="center">
-<img alt="semantic mask" height="1100" src="examples/sem_mask.png" width="600"/>
-</p>
+![sem_mask](examples/sem_mask.jpg)
 
-<p float="center">
-<img alt="sampling method" height="500" src="examples/sampling.png" width="600"/>
-</p>
+![sampling](examples/sampling.jpg)
 
-<p float="center">
-<img alt="predicted label" height="2400" src="examples/gt_pred.png" width="600"/>
-</p>
+![gt_pred](examples/gt_pred.jpg)
 
-<p float="center">
-<img alt="hsv loss" height="600" src="examples/hsv.png" width="600"/>
-</p>
+![hsv](examples/hsv.jpg)
 
 ## Citation
 ```
@@ -59,7 +57,6 @@ The outputs will be saved to `results/`.
               and Guyue Zhou
               },
     title = {Language-guided Semantic Style Transfer of 3D Indoor Scenes},
-    journal = {fixmeee},
     year  = {2022}
 }
 ```
