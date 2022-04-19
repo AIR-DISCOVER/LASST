@@ -17,7 +17,6 @@ conda env create --name LASST python=3.7
 conda install --yes --file requirements.txt
 ```
 
-System requirements
 ### System Requirements
 - Python 3.7
 - CUDA 11.0
@@ -28,13 +27,11 @@ The dataset we used is ScanNetV2 dataset. See [HERE](https://github.com/ScanNet/
 
 
 ### Run examples
-Call the below shell scripts to generate example styles. 
+Run the following command for a room with `wooden floor,steel refridgerator`:
 ```bash
-# wooden floor,steel refridgerator
-./scripts/go.sh
+sh ./scripts/go.sh
 ```
-
-The outputs will be saved to `results/`.
+The rendered images and final outputs will be saved to `results/`.
 
 ### Outputs
 
