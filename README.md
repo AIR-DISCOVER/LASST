@@ -39,32 +39,41 @@ The outputs will be saved to `results/`.
 #### Outputs
 
 <p float="center">
+prompt    input mesh    w/o semantic mask    w/ semantic mask 
+</p>
+<p float="center">
+steel table
 <img src="examples/example/sem_mask/00.png" width="150">
 <img src="examples/example/sem_mask/01.png" width="150">
 <img src="examples/example/sem_mask/02.png" width="150">
 </p>
 <p float="center">
+marble floor
 <img src="examples/example/sem_mask/10.png" width="150">
 <img src="examples/example/sem_mask/11.png" width="150">
 <img src="examples/example/sem_mask/12.png" width="150">
 </p>
 <p float="center">
+wooden floor, silk sofa, wooden table
 <img src="examples/example/sem_mask/20.png" width="150">
 <img src="examples/example/sem_mask/21.png" width="150">
 <img src="examples/example/sem_mask/22.png" width="150">
 </p>
 
 <p float="center">
+marble_floor, fabric sofa
 <img src="examples/example/sampling/00.png" width="150">
 <img src="examples/example/sampling/01.png" width="150">
 <img src="examples/example/sampling/02.png" width="150">
 </p>
 <p float="center">
+wooden floor, steel refrigerator
 <img src="examples/example/sampling/10.png" width="150">
 <img src="examples/example/sampling/11.png" width="150">
 <img src="examples/example/sampling/12.png" width="150">
 </p>
 <p float="center">
+golden chair, oak table
 <img src="examples/example/sampling/20.png" width="150">
 <img src="examples/example/sampling/21.png" width="150">
 <img src="examples/example/sampling/22.png" width="150">
@@ -72,18 +81,20 @@ The outputs will be saved to `results/`.
 
 <img src="examples/example/gt_pred_label/gt_pred.jpg" width="100%">
 
+leather sofa
+<p float="center">
+<img src="examples/example/hsv/294_02_init_leather00.png" width="150">
+<img src="examples/example/hsv/294_02_base_leather00.png" width="150">
+<img src="examples/example/hsv/294_02_rgb_leather00.png" width="150">
+<img src="examples/example/hsv/294_02_hsv_leather00.png" width="150">
+</p>
+
+leather sofa, marble floor, oak table
 <p float="center">
 <img src="examples/example/hsv/38_02_init00.png" width="150">
 <img src="examples/example/hsv/38_02_base00.png" width="150">
 <img src="examples/example/hsv/38_02_rgb00.png" width="150">
 <img src="examples/example/hsv/38_02_hsv00.png" width="150">
-</p>
-
-<p float="center">
-<img src="examples/example/hsv/294_02_init00.png" width="150">
-<img src="examples/example/hsv/294_02_base00.png" width="150">
-<img src="examples/example/hsv/294_02_rgb00.png" width="150">
-<img src="examples/example/hsv/294_02_hsv00.png" width="150">
 </p>
 
 ## Citation
