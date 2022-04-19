@@ -41,21 +41,21 @@ The outputs will be saved to `results/`.
 #### semantic mask
 (input mesh, w/o semantic mask, w/ semantic mask)
 
-text prompt: steel table
+`text prompt: steel table
 <p float="center">
 <img src="examples/example/sem_mask/00.png" width="150">      
 <img src="examples/example/sem_mask/01.png" width="150">      
 <img src="examples/example/sem_mask/02.png" width="150">      
 </p>
 
-text prompt: marble floor
+`text prompt: marble floor`
 <p float="center">
 <img src="examples/example/sem_mask/10.png" width="150">
 <img src="examples/example/sem_mask/11.png" width="150">
 <img src="examples/example/sem_mask/12.png" width="150">
 </p>
 
-text prompt: wooden floor, silk sofa, wooden table
+`text prompt: wooden floor, silk sofa, wooden table`
 <p float="center">
 <img src="examples/example/sem_mask/20.png" width="150">
 <img src="examples/example/sem_mask/21.png" width="150">
@@ -65,21 +65,21 @@ text prompt: wooden floor, silk sofa, wooden table
 #### sampling
 (input mesh    text2mesh sampling    LASST sampling)
 
-text prompt: marble_floor, fabric sofa
+`text prompt: marble_floor, fabric sofa`
 <p float="center">
 <img src="examples/example/sampling/00.png" width="150">
 <img src="examples/example/sampling/01.png" width="150">
 <img src="examples/example/sampling/02.png" width="150">
 </p>
 
-text prompt: wooden floor, steel refrigerator
+`text prompt: wooden floor, steel refrigerator`
 <p float="center">
 <img src="examples/example/sampling/10.png" width="150">
 <img src="examples/example/sampling/11.png" width="150">
 <img src="examples/example/sampling/12.png" width="150">
 </p>
 
-text prompt: golden chair, oak table
+`text prompt: golden chair, oak table`
 <p float="center">
 <img src="examples/example/sampling/20.png" width="150">
 <img src="examples/example/sampling/21.png" width="150">
@@ -92,7 +92,7 @@ text prompt: golden chair, oak table
 
 #### regularization
 (input mesh, None, rgb, hsv)
-text prompt: leather sofa
+`text prompt: leather sofa`
 <p float="center">
 <img src="examples/example/hsv/294_02_init_leather00.png" width="150">
 <img src="examples/example/hsv/294_02_base_leather00.png" width="150">
@@ -100,7 +100,7 @@ text prompt: leather sofa
 <img src="examples/example/hsv/294_02_hsv_leather00.png" width="150">
 </p>
 
-text prompt: leather sofa, marble floor, oak table
+`text prompt: leather sofa, marble floor, oak table`
 <p float="center">
 <img src="examples/example/hsv/38_02_init00.png" width="150">
 <img src="examples/example/hsv/38_02_base00.png" width="150">
