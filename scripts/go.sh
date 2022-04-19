@@ -1,16 +1,17 @@
-CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
+IDX=$RANDOM
+echo $IDX
+python main.py \
         --run branch \
-        --obj_path scene0002_00 \
-        --output_dir results/demo/room/hsv/scene0002_00/with_initial_color \
-        --prompt "icy wall, marble floor, wooden chairs, leather sofa" \
-        --label 1 2 5 6 \
+        --obj_path scene0158_02 \
+        --output_dir results/teaser/aaaaaa/ \
+        --prompt "ceramic refridgerator,marble wall,diamond texture floor,wooden cabinet,diamond texture door,steel counter," \
+        --label 24 1 2 3 8 12 \
         --sigma 5.0  \
         --clamp tanh \
         --n_normaugs 4 \
         --n_augs 1 \
         --normmincrop 0.1 \
         --normmaxcrop 0.1 \
-        --geoloss \
         --colordepth 2 \
         --normdepth 2   \
         --frontview \
@@ -22,14 +23,14 @@ CUDA_VISIBLE_DEVICES=3 python sem_seg_main.py \
         --maxcrop 1.0 \
         --save_render \
         --seed 11 \
-        --n_iter 1000 \
+        --n_iter 1500 \
         --learning_rate 0.0005 \
         --normal_learning_rate 0.0005 \
-        --background 1 1 1 \
+        --background 0.5 0.5 0.5 \
+        --rand_background \
         --frontview_center 1.8707 0.6303 \
-        --lighting \
+        --with_prior_color \
         --normratio 0.05 \
         --color_only \
-        --render_all_grad_one \
-        --focus_one_thing \
-        --with_prior_color
+        --focus_one_thing
+echo $IDX

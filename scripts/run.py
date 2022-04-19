@@ -13,7 +13,7 @@ DATE = datetime.today().strftime('%Y-%m-%d')
 # 2022-02-12: adopt new textures and apply those to all classes in a scene
 # 2022-03-01: fix the big bug of incorrespondance between class and label
 
-COMMAND = f'python sem_seg_main.py \
+COMMAND = f'python main.py \
         --run branch \
         --obj_path $SCENE_ID$ \
         --output_dir \"results/batch/{DATE}/$SCENE_ID$/$NAME$\" \
