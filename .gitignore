@@ -137,3 +137,14 @@ dmypy.json
 # Pyre type checker
 .pyre/
 /docs/.jekyll-cache/
+
+########################
+###### Additional ######
+########################
+
+.vscode/
+*.obj
+*.ply
+
+/results/*
+/data/*
