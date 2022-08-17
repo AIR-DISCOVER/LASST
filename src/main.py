@@ -16,11 +16,12 @@ from torchvision import transforms
 from VertexColorDeviationNetwork import VertexColorDeviationNetwork
 from utils import (device, clip_model, preprocess)
 from render import Renderer
+from mesh_scenenn import SceneNN_Mesh
 from mesh_scannet import Mesh
 from Normalization import MeshNormalizer
 from convert import HSVLoss as HSV
-
-
+from local import SCENENN_PATH
+from mesh_scenenn import xml_reader
 # if __name__ == '__main__':
 #     print('imported')
 
@@ -43,11 +44,14 @@ def run(args):
 
     ################# Loading #################
     render = Renderer()
-    if args.pred_label_path is not None:
-        pred_label_path = args.pred_label_path + '/' + args.obj_path + '.txt'
-        init_mesh = Mesh(args.obj_path, pred_label_path)
+    if args.dataset == 'scenenn':
+        init_mesh = SceneNN_Mesh(args.obj_path)
     else:
-        init_mesh = Mesh(args.obj_path)
+        if args.pred_label_path is not None:
+            pred_label_path = args.pred_label_path + '/' + args.obj_path + '.txt'
+            init_mesh = Mesh(args.obj_path, pred_label_path)
+        else:
+            init_mesh = Mesh(args.obj_path)
     # Bounding sphere normalizer
     # mesh.vertices is modified
     MeshNormalizer(init_mesh)()
@@ -56,7 +60,19 @@ def run(args):
     full_pred_vertices = init_mesh.vertices.detach()
 
     train_info=[]
-    for label_order, label in enumerate(args.label):
+
+    if args.str_label is not None:
+        ALL_LABELS = args.str_label
+        for i, label in enumerate(ALL_LABELS):
+            ALL_LABELS[i] = xml_reader(label, args.obj_path)
+
+
+
+    else:
+        ALL_LABELS = args.label
+
+    for label_order, label in enumerate(ALL_LABELS):
+
         preprocess_begin_time = time.time()
         if not args.render_all_grad_all:
             if not (init_mesh.labels == label).any():
@@ -84,16 +100,23 @@ def run(args):
             mesh.face_attributes = torch.full(size=(1, mesh.faces.shape[0], 3, 3), fill_value=0.5, device=device)
         render_args = []
         fail = False
-        for i in range(args.n_views):
+        # for i in range(args.n_views):
+        i=0
+        while i < 100:
             if args.render_all_grad_one:
                 result = render.find_appropriate_view(masked_mesh, args.view_min, args.view_max, percent=1)
             else:
                 result = render.find_appropriate_view(mesh, args.view_min, args.view_max, percent=1)
             if result is None:
-                fail = True
-                break
+                args.view_min -= 0.01
+                args.view_max += 0.01
+                i = i+1
+                continue
             render_args.append(result)
-        if fail:
+            i = i+1
+        
+        if len(render_args) < args.n_views:
+            print("FAIL")
             continue
 
         preprocess_end_time = time.time()
@@ -424,8 +447,11 @@ def run(args):
                 last_ten_ave_norm_text_loss.append(norm_text_loss.cpu().detach().numpy())
                 last_ten_ave_hsv_loss.append((hsv_stat_loss+sv_stat_loss).cpu().detach().numpy())
                 last_ten_ave_rgb_loss.append(rgb_loss.cpu().detach().numpy())
+        
 
         end_time = time.time()
+        # objbase, extension = os.path.splitext(os.path.basename(args.obj_path))
+        # mesh.export(os.path.join(args.dir, f"all_{objbase}_{label}.obj"), color=mesh.colors)
         train_info.append((label, args.n_iter, preprocess_time, end_time-begin_time, np.mean(last_ten_ave_text_loss), 
                             np.mean(last_ten_ave_norm_text_loss), np.mean(last_ten_ave_hsv_loss), np.mean(last_ten_ave_rgb_loss)))
 
@@ -474,11 +500,13 @@ if __name__ == '__main__':
     # =================      Input and Output      =================
     parser.add_argument('--obj_path', type=str, default='', help='Obj name w/o .obj suffix')
     parser.add_argument('--label', nargs='+', type=int, default=5, help='indices for semantic categories, joined by space')
+    parser.add_argument('--str_label', nargs='+', type=str, default=None, help='indices for semantic categories, joined by space')
     parser.add_argument('--prompt', nargs="+", default=None, help='text description for each category, joined by comma. Number of categories should comply with --label')
     parser.add_argument('--forbidden', nargs="+", default=None, help='text description for each category, joined by comma. Number of categories should comply with --label')
     parser.add_argument('--image', type=str, default=None)  # TODO
     parser.add_argument('--output_dir', type=str, default='round2/alpha5', help="Output directory")
     parser.add_argument('--pred_label_path', type=str, default=None, help='use semantic mask that VIBUS model predicts')
+    parser.add_argument('--dataset', type=str, default='scannet', help='use semantic mask that VIBUS model predicts')
     # ==============================================================
 
     # ================= Neural Style Field options =================

@@ -1,10 +1,10 @@
 CUDA_VISIBLE_DEVICES=2 python ./src/main.py \
 \
-        --obj_path scene0164_03 \
-        --label  2 24\
-        --prompt "wooden floor,steel refridgerator" \
-        --forbidden "human face,English alphabet,lighting,human" \
-        --output_dir results/scene0164_03/ \
+        --obj_path 322 \
+        --label  3 \
+        --prompt "steel cabinet" \
+        --output_dir results/test \
+        --dataset scenenn \
 \
         --learning_rate 0.0005 \
         --lr_decay 0.9 \
@@ -20,8 +20,8 @@ CUDA_VISIBLE_DEVICES=2 python ./src/main.py \
         --n_views 5 \
         --mincrop 0.6 \
         --maxcrop 0.9 \
-        --view_min 0.25 \
-        --view_max 0.7 \
+        --view_min 0.05 \
+        --view_max 0.9 \
         --normmincrop 0.6 \
         --normmaxcrop 0.9 \
 \
@@ -29,7 +29,7 @@ CUDA_VISIBLE_DEVICES=2 python ./src/main.py \
         --with_prior_color\
 \
         --clipavg \
-        --seed 12\
+        --seed 18082\
         --report_step 100
 
 
@@ -40,3 +40,4 @@ CUDA_VISIBLE_DEVICES=2 python ./src/main.py \
         # --hsv_loss_weight 0.01 \
         
         #--regress \
+        # --forbidden "human face,English alphabet,lighting,human" \

@@ -9,74 +9,63 @@ import kaolin.ops.mesh
 
 DEVICE = torch.device("cuda:0")
 from IPython import embed
-from local import FULL_PATH, FULL_MESH_PATH, TEST_FULL_PATH, TEST_FULL_MESH_PATH
-from tqdm import tqdm
-class Mesh():
+from local import SCENENN_PATH
+import xml.etree.ElementTree as ET
+
+def xml_reader(label, scan_id):
+    tree = ET.parse(f"{SCENENN_PATH}/nyu_class/{scan_id}/{scan_id}.xml")
+    root = tree.getroot()
+    for i in range(len(root)):
+        if root[i].attrib['nyu_class'] == label:
+            return root[i].attrib['color']
+        # data = root[i]
+        # label_id = root[i].attrib['id']
+        # color = root[i].attrib['color']
+        # label_text = root[i].attrib['text']
+        # nyu_class = root[i].attrib['nyu_class']
+    return -1
+
+
+
+class SceneNN_Mesh():
     """Load Mesh from ply files (from full and full_mesh)"""
     # FULL_PATH = '/home/tb5zhh/data/full/train'
     # FULL_MESH_PATH = '/home/tb5zhh/data/full_mesh/train'
 
-    def __init__(self, scan_id, pred_label_path=None, color=torch.tensor([0.0, 0.0, 1.0]), setup=True) -> None:
+    def __init__(self, scan_id, color=torch.tensor([0.0, 0.0, 1.0]), setup=True) -> None:
         if not setup:
             return
-        if pred_label_path is None:
-            assert int(scan_id.split("scene")[-1].split("_")[0]) < 707
-            full_ply_path = f"{FULL_PATH}/{scan_id}.ply"
-            full_mesh_ply_path = f"{FULL_MESH_PATH}/{scan_id}.ply"
+        
+        full_ply_path = f"/DATA1/jinbu/change_pose_color_ply_ds/{scan_id}_semantic.ply"
+        full_mesh_ply_path = f"/DATA1/jinbu/change_pose_color_ply_ds/{scan_id}_color.ply"
 
-            full_plydata = PlyData.read(full_ply_path)
-            full_mesh_plydata = PlyData.read(full_mesh_ply_path)
+        full_plydata = PlyData.read(full_ply_path)
+        full_mesh_plydata = PlyData.read(full_mesh_ply_path)
 
-            meshes = []
-            for i in range(len(full_mesh_plydata['face'])):
-                meshes.append(full_mesh_plydata['face'][i][0])
-            self.faces: torch.Tensor = torch.as_tensor(np.stack(meshes)).to(DEVICE).to(torch.long)
+        meshes = []
+        for i in range(len(full_mesh_plydata['face'])):
+            meshes.append(full_mesh_plydata['face'][i][0])
+        self.faces: torch.Tensor = torch.as_tensor(np.stack(meshes)).to(DEVICE).to(torch.long)
 
-            self.labels: torch.Tensor = torch.as_tensor(np.asarray(full_plydata['vertex']['label'])).to(DEVICE)
+        # label_color = []
+        # for i in range(len(full_plydata['vertex'])):
+        #     label_color.append(f"{str(full_plydata['vertex']['red'][i])} {str(full_plydata['vertex']['green'][i])} {str(full_plydata['vertex']['blue'][i])}")
+        # self.labels: torch.Tensor = np.stack(label_color)
+        self.labels: torch.Tensor = torch.as_tensor(np.asarray(full_plydata['vertex']['red'], dtype=np.int32)).to(DEVICE)
 
-            self.colors: torch.Tensor = torch.as_tensor(np.stack((full_plydata['vertex']['red'] / 256, full_plydata['vertex']['green'] / 256, full_plydata['vertex']['blue'] / 256),
-                                                                axis=1)).to(DEVICE).to(dtype=torch.float)
-            self.vertices: torch.Tensor = torch.as_tensor(np.stack((full_mesh_plydata['vertex']['x'], full_mesh_plydata['vertex']['y'], full_mesh_plydata['vertex']['z']), axis=1)).to(DEVICE)
+        self.colors: torch.Tensor = torch.as_tensor(np.stack((full_mesh_plydata['vertex']['red'] / 256, full_mesh_plydata['vertex']['green'] / 256, full_mesh_plydata['vertex']['blue'] / 256),
+                                                            axis=1)).to(DEVICE).to(dtype=torch.float32)
+        self.vertices: torch.Tensor = torch.as_tensor(np.stack((full_mesh_plydata['vertex']['x'], full_mesh_plydata['vertex']['y'], full_mesh_plydata['vertex']['z']), axis=1)).to(DEVICE).to(dtype=torch.float32)
 
-            self.vertex_normals: torch.Tensor = None
-            self.face_normals: torch.Tensor = None
-            self.texture_map: torch.Tensor = None
-            self.face_attributes: torch.Tensor = None
-            self.face_uvs: torch.Tensor = None
+        self.vertex_normals: torch.Tensor = None
+        self.face_normals: torch.Tensor = None
+        self.texture_map: torch.Tensor = None
+        self.face_attributes: torch.Tensor = None
+        self.face_uvs: torch.Tensor = None
 
-            self.texture_map = utils.get_texture_map_from_color(self, color)
-            # self.face_attributes = utils.get_face_attributes_from_color(self, color)  # FIXME0
-            self.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(self.colors.unsqueeze(0), self.faces).squeeze().unsqueeze(0)
-        else:   # use predicted label instead of ground truth
-            full_ply_path = f"{FULL_PATH}/{scan_id}.ply"
-            full_mesh_ply_path = f"{FULL_MESH_PATH}/{scan_id}.ply"
-
-            full_plydata = PlyData.read(full_ply_path)
-            full_mesh_plydata = PlyData.read(full_mesh_ply_path)
-
-            meshes = []
-            for i in range(len(full_mesh_plydata['face'])):
-                meshes.append(full_mesh_plydata['face'][i][0])
-            self.faces: torch.Tensor = torch.as_tensor(np.stack(meshes)).to(DEVICE).to(torch.long)
-
-            self.labels: torch.Tensor = torch.as_tensor(np.loadtxt(pred_label_path)).to(DEVICE)
-            
-
-
-            self.colors: torch.Tensor = torch.as_tensor(np.stack((full_plydata['vertex']['red'] / 256, full_plydata['vertex']['green'] / 256, full_plydata['vertex']['blue'] / 256),
-                                                                axis=1)).to(DEVICE).to(dtype=torch.float)
-            self.vertices: torch.Tensor = torch.as_tensor(np.stack((full_mesh_plydata['vertex']['x'], full_mesh_plydata['vertex']['y'], full_mesh_plydata['vertex']['z']), axis=1)).to(DEVICE)
-
-            self.vertex_normals: torch.Tensor = None
-            self.face_normals: torch.Tensor = None
-            self.texture_map: torch.Tensor = None
-            self.face_attributes: torch.Tensor = None
-            self.face_uvs: torch.Tensor = None
-
-            self.texture_map = utils.get_texture_map_from_color(self, color)
-            # self.face_attributes = utils.get_face_attributes_from_color(self, color)  # FIXME0
-            self.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(self.colors.unsqueeze(0), self.faces).squeeze().unsqueeze(0)
-
+        self.texture_map = utils.get_texture_map_from_color(self, color)
+        # self.face_attributes = utils.get_face_attributes_from_color(self, color)  # FIXME0
+        self.face_attributes = kaolin.ops.mesh.index_vertices_by_faces(self.colors.unsqueeze(0), self.faces).squeeze().unsqueeze(0)
 
     def standardize_mesh(self, inplace=False):
         mesh = self if inplace else copy.deepcopy(self)
@@ -176,7 +165,7 @@ class Mesh():
         return ver_mask, face_mask, old_indice_to_new, new_indice_to_old
 
     def clone(self):
-        new_mesh = Mesh(1, setup=False)
+        new_mesh = SceneNN_Mesh(1, setup=False)
         new_mesh.faces = self.faces.detach() if self.faces is not None else None
         new_mesh.labels = self.labels.detach() if self.labels is not None else None
         new_mesh.colors = self.colors.detach() if self.colors is not None else None

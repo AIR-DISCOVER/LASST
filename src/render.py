@@ -5,6 +5,7 @@ from utils import (get_camera_from_view2, get_camera_from_inside_out)
 import matplotlib.pyplot as plt
 from utils import device
 import torch
+from random import randint
 import numpy as np
 from IPython import embed
 
@@ -393,7 +394,7 @@ class Renderer():
 
     def find_appropriate_view(self, mesh, lower=0.6, upper=0.9, percent=1.):
         face_attributes = [mesh.face_attributes, torch.ones((1, mesh.faces.shape[0], 3, 1), device='cuda')]
-        length = 10000
+        length = 1000
         for i in range(length):
             fov_alpha = i/length
             if i % 500 == 0:
@@ -425,7 +426,7 @@ class Renderer():
             if ratio > lower and ratio < upper:
                 break
         if i >= length - 1:
-            print('fail')
+            print('retry')
             return None
         return None, elev, azim, fov
 
@@ -461,14 +462,16 @@ class Renderer():
         else:
             face_attributes = mesh.face_attributes
         for i in range(num_views):
+            # j = i
+            j = randint(0,len(render_args)-1)
             if fixed or fixed_all:
-                elev = render_args[i][1]
-                azim = render_args[i][2]
-                fov = render_args[i][3]
+                elev = render_args[j][1]
+                azim = render_args[j][2]
+                fov = render_args[j][3]
             else:
-                elev = torch.clamp(torch.normal(mean=render_args[i][1], std=elev_std * np.pi), 0, np.pi)
-                azim = torch.clamp(torch.normal(mean=render_args[i][2], std=azim_std * np.pi), 0, 2 * np.pi)
-                fov = torch.clamp(render_args[i][3] * 1 / torch.normal(mean=1, std=0.1, size=(1,)), 0, np.pi * 2 / 3)
+                elev = torch.clamp(torch.normal(mean=render_args[j][1], std=elev_std * np.pi), 0, np.pi)
+                azim = torch.clamp(torch.normal(mean=render_args[j][2], std=azim_std * np.pi), 0, 2 * np.pi)
+                fov = torch.clamp(render_args[j][3] * 1 / torch.normal(mean=1, std=0.1, size=(1,)), 0, np.pi * 2 / 3)
 
             fov = np.pi/3
             fovs.append(fov/np.pi)
