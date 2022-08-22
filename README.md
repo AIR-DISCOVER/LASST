@@ -1,13 +1,14 @@
 # LASST(Language-guided Semantic Style Transfer of 3D Indoor Scenes)
 
-Created by Hao Zhao, Beiwen Tian, Bu Jin and Guyue Zhou from Institute for [AI Industry Research(AIR), Tsinghua University](https://air.tsinghua.edu.cn/).
+Accepted by Accepted to ACM Multimedia PIES-ME 2022. [Paper](https://arxiv.org/abs/2208.07870)
+Created by Bu Jin, Beiwen Tian, Hao Zhao and Guyue Zhou from Institute for [AI Industry Research(AIR), Tsinghua University](https://air.tsinghua.edu.cn/).
 
 ## Introduction
 3D content creation and editing is a long-existing multimedia demand. With the surge of metaverse, tech giants and consumers are now looking forward to a high-quality virtual world that people can live in and interactive with. We study the problem of 3D indoor scene style transfer, which would promote the user experience of metaverse residents. 
 
 In this repository, we address the new problem of language-guided semantic style transfer of 3D indoor scenes. The input is a 3D indoor scene mesh and several phrases that describe the target scene. Firstly, 3D vertex coordinates are mapped to RGB residues by a multi-layer perceptron. Secondly, colored 3D meshes are differentiablly rendered into 2D images, via a viewpoint sampling strategy tailored for indoor scenes. Thirdly, rendered 2D images are compared to phrases, via pre-trained vision-language models. Lastly, errors are back-propagated to the multi-layer perceptron to update vertex colors corresponding to certain semantic categories. The whole process of LASST can be seen from below. Code and models will be made publicly available.
 
-![main](examples/main.png)
+![main](examples/maiteasern.pdf)
 
 ## Getting Started
 ### Installation
@@ -103,13 +104,10 @@ The rendered images and final outputs will be saved to `results/`.
 
 ## Citation
 ```
-@article{LASST,
-    author = {Bu Jin
-              and Beiwen Tian
-              and Hao Zhao
-              and Guyue Zhou
-              },
-    title = {Language-guided Semantic Style Transfer of 3D Indoor Scenes},
-    year  = {2022}
+@article{jin2022language,
+  title={Language-guided Semantic Style Transfer of 3D Indoor Scenes},
+  author={Jin, Bu and Tian, Beiwen and Zhao, Hao and Zhou, Guyue},
+  journal={arXiv preprint arXiv:2208.07870},
+  year={2022}
 }
 ```
