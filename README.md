@@ -8,7 +8,7 @@ Created by Bu Jin, Beiwen Tian, Hao Zhao and Guyue Zhou from Institute for [AI I
 
 In this repository, we address the new problem of language-guided semantic style transfer of 3D indoor scenes. The input is a 3D indoor scene mesh and several phrases that describe the target scene. Firstly, 3D vertex coordinates are mapped to RGB residues by a multi-layer perceptron. Secondly, colored 3D meshes are differentiablly rendered into 2D images, via a viewpoint sampling strategy tailored for indoor scenes. Thirdly, rendered 2D images are compared to phrases, via pre-trained vision-language models. Lastly, errors are back-propagated to the multi-layer perceptron to update vertex colors corresponding to certain semantic categories. The whole process of LASST can be seen from below. Code and models will be made publicly available.
 
-![main](examples/teaser.pdf)
+![main](examples/teaser.png)
 
 ## Getting Started
 ### Installation
