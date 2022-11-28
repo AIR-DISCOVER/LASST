@@ -24,15 +24,15 @@ class Mesh():
             full_ply_path = f"{FULL_PATH}/{scan_id}.ply"
             full_mesh_ply_path = f"{FULL_MESH_PATH}/{scan_id}.ply"
 
-            full_plydata = PlyData.read(full_ply_path)
-            full_mesh_plydata = PlyData.read(full_mesh_ply_path)
+            full_plydata = PlyData.read(full_ply_path) # -> v2, rgb
+            full_mesh_plydata = PlyData.read(full_mesh_ply_path) # -> v2.label.ply, with vertex, face, label
 
             meshes = []
             for i in range(len(full_mesh_plydata['face'])):
                 meshes.append(full_mesh_plydata['face'][i][0])
             self.faces: torch.Tensor = torch.as_tensor(np.stack(meshes)).to(DEVICE).to(torch.long)
 
-            self.labels: torch.Tensor = torch.as_tensor(np.asarray(full_plydata['vertex']['label'])).to(DEVICE)
+            self.labels: torch.Tensor = torch.as_tensor(np.asarray(full_mesh_plydata['vertex']['label']).astype(np.int16)).to(DEVICE)
 
             self.colors: torch.Tensor = torch.as_tensor(np.stack((full_plydata['vertex']['red'] / 256, full_plydata['vertex']['green'] / 256, full_plydata['vertex']['blue'] / 256),
                                                                 axis=1)).to(DEVICE).to(dtype=torch.float)
