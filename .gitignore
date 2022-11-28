@@ -146,7 +146,12 @@ dmypy.json
 *.obj
 *.ply
 
+
 /results/*
 /data/*
+
+!/data/source_meshes/
+!data/source_meshes/scene0005_00.obj
+!data/source_meshes/scene0005_00.ply
 
 /clip/
