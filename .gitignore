@@ -151,7 +151,7 @@ dmypy.json
 /data/*
 
 !/data/source_meshes/
-!data/source_meshes/scene0005_00.obj
-!data/source_meshes/scene0005_00.ply
+!data/source_meshes/scannet/full_mesh_path/scene0164_03.ply
+!data/source_meshes/scannet/full_path/scene0164_03.ply
 
 /clip/

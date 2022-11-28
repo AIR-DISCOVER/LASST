@@ -1,4 +1,4 @@
-CUDA_VISIBLE_DEVICES=2 python ./src/main.py \
+CUDA_VISIBLE_DEVICES=0 python ./src/main.py \
 \
         --obj_path scene0164_03 \
         --label  2 24\
