@@ -1,6 +1,6 @@
 # LASST(Language-guided Semantic Style Transfer of 3D Indoor Scenes)
 
-Accepted by Accepted to ACM Multimedia PIES-ME 2022. [Paper](https://arxiv.org/abs/2208.07870)
+Accepted by ACM Multimedia PIES-ME 2022. [Paper](https://arxiv.org/abs/2208.07870)
 Created by Bu Jin, Beiwen Tian, Hao Zhao and Guyue Zhou from Institute for [AI Industry Research(AIR), Tsinghua University](https://air.tsinghua.edu.cn/).
 
 ## Introduction
