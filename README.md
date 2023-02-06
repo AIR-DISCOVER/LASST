@@ -14,8 +14,12 @@ In this repository, we address the new problem of language-guided semantic style
 ### Installation
 
 ```
-conda env create --name LASST python=3.7
-conda install --yes --file requirements.txt
+conda env create -f environment.yml
+pip install git+https://github.com/openai/CLIP.git
+git clone https://github.com/NVIDIAGameWorks/kaolin.git
+cd kaolin
+git checkout v0.12.0
+python3 setup.py install
 ```
 
 ### System Requirements

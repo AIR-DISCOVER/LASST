@@ -1,8 +1,8 @@
 CUDA_VISIBLE_DEVICES=0 python ./src/main.py \
 \
-        --obj_path scene0164_03 \
-        --label  2 24\
-        --prompt "wooden floor,steel refridgerator" \
+        --obj_path scene0000_00 \
+        --label  2 1\
+        --prompt "wooden floor, wooden wall" \
         --forbidden "human face,English alphabet,lighting,human" \
         --output_dir results/test/ \
 \
